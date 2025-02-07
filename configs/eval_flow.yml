@@ -13,7 +13,7 @@ metrics:
 
 loader:
     batch_size: 1
-    resolution: [180, 240] # H x W
+    resolution: [128, 128] # H x W
     augment: []
     gpu: 0
 

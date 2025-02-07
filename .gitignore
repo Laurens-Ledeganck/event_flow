@@ -2,6 +2,7 @@ results_inference/
 trained_models/
 __pycache__/
 mlruns/
+datasets/data
 .vscode/
 *.pyc
 venv/

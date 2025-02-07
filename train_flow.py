@@ -3,6 +3,7 @@ import argparse
 import mlflow
 import torch
 from torch.optim import *
+import numpy as np
 
 from configs.parser import YAMLParser
 from dataloader.h5 import H5Loader
@@ -34,6 +35,12 @@ from utils.gradients import get_grads
 from utils.utils import load_model, save_csv, save_diff, save_model
 from utils.visualization import Visualization
 
+from laurens_stuff import (
+    FullRotationModel,
+    RotationLoss, 
+    ModifiedH5Loader
+)
+
 
 def train(args, config_parser):
     mlflow.set_tracking_uri(args.path_mlflow)
@@ -63,8 +70,42 @@ def train(args, config_parser):
     if config["vis"]["enabled"]:
         vis = Visualization(config)
 
+    # model initialization and settings
+    rotation = False
+    model_args = config["model"].copy()
+    if "prev_runid" in config["model"].keys() and config["model"]["use_existing"]:
+        rotation = True # special case if we want to tap out rotation
+        try: 
+            prev_model = load_model(config["model"]["prev_runid"], None, device)
+            prev_model.eval()
+        except AttributeError:
+            raise ValueError("prev_runid not found")
+
+        model_args["flow_model"] = prev_model
+        model_args["batch_size"] = config["loader"]["batch_size"]
+        model_args["resolution"] = config["loader"]["resolution"]
+        model_args["rotation_mode"] = config["loader"]["rotation_mode"]
+        model_args["rotation_type"] = config["loader"]["rotation_type"]
+
+    model = eval(config["model"]["name"])(model_args).to(device)
+    model = load_model(args.prev_runid, model, device)
+    model.train()
+
+    # optimizers
+    optimizer = eval(config["optimizer"]["name"])(model.parameters(), lr=config["optimizer"]["lr"])
+    optimizer.zero_grad()
+
+    # loss function
+    if rotation: 
+        loss_function = RotationLoss(config, device)
+    else: 
+        loss_function = EventWarping(config, device)
+    
     # data loader
-    data = H5Loader(config, config["model"]["num_bins"], config["model"]["round_encoding"])
+    if rotation: 
+        data = ModifiedH5Loader(config, config["model"]["num_bins"], config["model"]["round_encoding"])
+    else: 
+        data = H5Loader(config, config["model"]["num_bins"], config["model"]["round_encoding"])
     dataloader = torch.utils.data.DataLoader(
         data,
         drop_last=True,
@@ -73,18 +114,6 @@ def train(args, config_parser):
         worker_init_fn=config_parser.worker_init_fn,
         **kwargs,
     )
-
-    # loss function
-    loss_function = EventWarping(config, device)
-
-    # model initialization and settings
-    model = eval(config["model"]["name"])(config["model"].copy()).to(device)
-    model = load_model(args.prev_runid, model, device)
-    model.train()
-
-    # optimizers
-    optimizer = eval(config["optimizer"]["name"])(model.parameters(), lr=config["optimizer"]["lr"])
-    optimizer.zero_grad()
 
     # simulation variables
     train_loss = 0
@@ -130,15 +159,22 @@ def train(args, config_parser):
             x = model(inputs["event_voxel"].to(device), inputs["event_cnt"].to(device))
 
             # event flow association
-            loss_function.event_flow_association(
-                x["flow"],
-                inputs["event_list"].to(device),
-                inputs["event_list_pol_mask"].to(device),
-                inputs["event_mask"].to(device),
-            )
+            if rotation: 
+                loss_function.prepare_loss(
+                    x["rotation"],
+                    inputs["gt_rotation"].to(device)
+                )
+
+            else: 
+                loss_function.event_flow_association(
+                    x["flow"],
+                    inputs["event_list"].to(device),
+                    inputs["event_list_pol_mask"].to(device),
+                    inputs["event_mask"].to(device),
+                )
 
             # backward pass
-            if loss_function.num_events >= config["data"]["window_loss"]:
+            if loss_function.num_events >= config["data"]["window_loss"] or rotation:
 
                 # overwrite intermediate flow estimates with the final ones
                 if config["loss"]["overwrite_intermediate"]:
@@ -146,6 +182,8 @@ def train(args, config_parser):
 
                 # loss
                 loss = loss_function()
+                if np.isnan(loss.item()): 
+                    raise ValueError(f"Loss became NaN; y_true was {inputs['gt_rotation']}, y_pred was {x['rotation']}")
                 train_loss += loss.item()
 
                 # update number of loss samples seen by the network

@@ -11,13 +11,18 @@ def load_model(prev_runid, model, device):
     except:
         return model
 
-    model_dir = run.info.artifact_uri + "/model/data/model.pth"
-    if model_dir[:7] == "file://":
-        model_dir = model_dir[7:]
+    artifact_uri = run.info.artifact_uri + "/model/data/model.pth"
+    artifact_uri = artifact_uri.replace("/", "\\")
+    model_dir = os.path.join(os.getcwd(), artifact_uri[artifact_uri.find('mlruns'):])
+    # if model_dir[:7] == "file://":
+    #     model_dir = model_dir[7:]
+
+    print("Loading model from dir: ", model_dir)
 
     if os.path.isfile(model_dir):
         model_loaded = torch.load(model_dir, map_location=device)
-        model.load_state_dict(model_loaded.state_dict())
+        model = model_loaded
+        # model.load_state_dict(model_loaded.state_dict())
         print("Model restored from " + prev_runid + "\n")
     else:
         print("No model found at" + prev_runid + "\n")
@@ -34,7 +39,9 @@ def create_model_dir(path_results, runid):
 
 
 def save_model(model):
+    print("saving model")
     mlflow.pytorch.log_model(model, "model")
+    print("saved model \n")
 
 
 def save_csv(data, fname):
