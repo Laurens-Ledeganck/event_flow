@@ -4,6 +4,9 @@ import mlflow
 import pandas as pd
 import torch
 
+# Set the tracking URI to a specific directory
+mlflow.set_tracking_uri("file:///mlruns/test")
+
 
 def load_model(prev_runid, model, device):
     try:
@@ -21,8 +24,8 @@ def load_model(prev_runid, model, device):
 
     if os.path.isfile(model_dir):
         model_loaded = torch.load(model_dir, map_location=device)
-        model = model_loaded
-        # model.load_state_dict(model_loaded.state_dict())
+        model = model_loaded  # change
+        #model.load_state_dict(model_loaded.state_dict())  # change (comment)
         print("Model restored from " + prev_runid + "\n")
     else:
         print("No model found at" + prev_runid + "\n")

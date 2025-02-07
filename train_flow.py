@@ -1,3 +1,14 @@
+# TODO: 
+# THREAD A:
+# Step 1: Train a model for flow
+# Step 2: Tap off the rotational info
+# Step 3: Train an extra NN for the rotational info
+# Step 4: Write custom loss function
+#
+# THREAD B:
+# Step 1: read up on h5 filetype
+# Step 2: transform Zurich files to h5
+
 import argparse
 
 import mlflow
@@ -35,15 +46,8 @@ from utils.gradients import get_grads
 from utils.utils import load_model, save_csv, save_diff, save_model
 from utils.visualization import Visualization
 
-from laurens_stuff import (
-    FullRotationModel,
-    RotationLoss, 
-    ModifiedH5Loader
-)
-
-
 def train(args, config_parser):
-    mlflow.set_tracking_uri(args.path_mlflow)
+    mlflow.set_tracking_uri("mlruns/test")
 
     # configs
     config = config_parser.config
@@ -55,6 +59,7 @@ def train(args, config_parser):
     mlflow.set_experiment(config["experiment"])
     mlflow.start_run()
     mlflow.log_params(config)
+    print('\n', args.prev_runid, '\n')
     mlflow.log_param("prev_runid", args.prev_runid)
     config = config_parser.combine_entries(config)
     print("MLflow dir:", mlflow.active_run().info.artifact_uri[:-9])
@@ -246,6 +251,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--prev_runid",
+        #default="d85523b78a5d444889e72e23cd5ee1b4",
         default="",
         help="pre-trained model to use as starting point",
     )

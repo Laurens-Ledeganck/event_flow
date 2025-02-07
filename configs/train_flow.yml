@@ -7,10 +7,7 @@ data:
     window_loss: 10000 # events
 
 model:
-    name: FullRotationModel  # EVFlowNet/*FireFlowNet/*FireNet/E2VID/RecEVFlowNet  # new
-    prev_runid: d85523b78a5d444889e72e23cd5ee1b4  # new
-    use_existing: True  # new
-    transfer_layer: R1b  # new
+    name: EVFlowNet # EVFlowNet/*FireFlowNet/*FireNet/E2VID/RecEVFlowNet
     encoding: cnt # voxel/cnt
     round_encoding: False # for voxel encoding
     norm_input: False # normalize input
