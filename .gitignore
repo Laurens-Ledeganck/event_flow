@@ -1,12 +1,7 @@
-demo_videos
-results_inference/
-trained_models/
+results
 __pycache__/
-mlruns/
 datasets/data
-visualization/models
-datasets/data
-visualization/models
+*/visualization/models
 .vscode/
 *.pyc
-venv/
+*venv/
