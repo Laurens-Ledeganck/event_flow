@@ -44,11 +44,11 @@ class ConvRotationModel(BaseModel):
     def __init__(self, input_size, n_outputs):
         super().__init__()
         self.conv_layers = torch.nn.Sequential(
-            torch.nn.Conv2d(input_size[2], 16, kernel_size=3, stride=2, padding=1),  # 128 -> 64
+            torch.nn.Conv2d(input_size[1], 16, kernel_size=3, stride=2, padding=1),  # 128 -> 64
             torch.nn.Conv2d(16, 8, kernel_size=3, stride=2, padding=1),  # 64 -> 32
             torch.nn.Conv2d(8, 4, kernel_size=3, stride=2, padding=1),  # 32 -> 16
         )
-        n_middle = self.conv_layers(torch.random(tuple([1] + input_size))).reshape(1, -1).shape[1]
+        n_middle = self.conv_layers(torch.randn(input_size)).reshape(input_size[0], -1).shape[1]
         self.linear_layers = torch.nn.Sequential(
             torch.nn.Linear(n_middle, 64),
             torch.nn.ReLU(),
@@ -58,6 +58,7 @@ class ConvRotationModel(BaseModel):
         )
         self.layers = torch.nn.Sequential(
             self.conv_layers, 
+            torch.nn.Flatten(),
             self.linear_layers
         )
     
@@ -82,6 +83,7 @@ class FullRotationModel(BaseModel):
         # if type(unet_kwargs["spiking_neuron"]) is dict:
         #     for kwargs in self.kwargs:
         #         kwargs.update(unet_kwargs["spiking_neuron"])
+        self.device = unet_kwargs["device"]
 
         self.flow_model = unet_kwargs["flow_model"]
         self.flow_model.eval()
@@ -99,8 +101,10 @@ class FullRotationModel(BaseModel):
         self.n_outputs = self.get_n_outputs()
 
         if unet_kwargs["model_type"] == ('conv' or 'conv_model' or 'ConvRotationModel'):
-            self.rotation_model = ConvRotationModel(n_inputs=self.transfer_size, n_outputs=self.n_outputs)
+            self.model_type = 'conv'
+            self.rotation_model = ConvRotationModel(input_size=list(self.transfer_size), n_outputs=self.n_outputs)
         else:
+            self.model_type = 'linear'
             self.rotation_model = SimpleRotationModel(n_inputs=self.n_transfers, n_outputs=self.n_outputs)
     
     def transfer_hook(self, module, input, output):  # should I use output[0] or not?
@@ -115,8 +119,8 @@ class FullRotationModel(BaseModel):
         hook = getattr(self.flow_model, self.transfer_layer).register_forward_hook(self.transfer_hook)
 
         # now pass a dummy input (n_transfers will be registered)
-        dummy_voxel = torch.randn(self.input_size, dtype=torch.float32)
-        dummy_cnt = torch.randint(0, 3, self.input_size, dtype=torch.float32)
+        dummy_voxel = torch.randn(self.input_size, dtype=torch.float32).to(self.device)
+        dummy_cnt = torch.randint(0, 3, self.input_size, dtype=torch.float32).to(self.device)
         with torch.no_grad():
             outp = self.flow_model(dummy_voxel, dummy_cnt)
 
@@ -166,13 +170,19 @@ class FullRotationModel(BaseModel):
         :param log: log activity
         :return: output dict with list of [N x 2 X H X W] (x, y) displacement within event_tensor.
         """
+        event_cnt = event_cnt.to(self.device)
+        event_voxel = event_voxel.to(self.device)   
 
         # forward pass
         hook = getattr(self.flow_model, self.transfer_layer).register_forward_hook(self.transfer_hook)
         
         with torch.no_grad():
             flow = self.flow_model(event_voxel, event_cnt, log=log)['flow'][0]
-        transfer = torch.reshape(self.current_transfer, (self.current_transfer.shape[0], self.n_transfers))
+        
+        if self.model_type == 'linear':
+            transfer = torch.reshape(self.current_transfer, (self.current_transfer.shape[0], self.n_transfers))
+        else: 
+            transfer = self.current_transfer
 
         r = self.rotation_model(transfer)
         
@@ -195,9 +205,9 @@ class RotationLoss(BaseValidationLoss):
     def prepare_loss(self, y_pred, y_test):
         self.y_pred = y_pred
         self.y_test = y_test
-        print(y_pred)
-        print(y_test)
-        print()
+        # print(y_pred)
+        # print(y_test)
+        # print()
 
     def forward(self):
         return self.loss_fn(self.y_pred, self.y_test)

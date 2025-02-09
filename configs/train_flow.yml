@@ -11,10 +11,11 @@ model:
     model_type: conv
     rotation_mode: difference
     rotation_type: rotvec
-    flow_model: nervous-ram-566
+    use_existing: true
+    prev_runid: nervous-ram-566
     transfer_layer: pred
 
-    name: FireNet # EVFlowNet/*FireFlowNet/*FireNet/E2VID/RecEVFlowNet
+    #name: FireNet # EVFlowNet/*FireFlowNet/*FireNet/E2VID/RecEVFlowNet
     
     encoding: cnt # voxel/cnt
     round_encoding: False # for voxel encoding

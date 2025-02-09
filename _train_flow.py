@@ -79,6 +79,7 @@ def train(args, config_parser):
 
     # initialize settings
     device = config_parser.device
+    config['model']['device'] = device
     kwargs = config_parser.loader_kwargs
 
     # visualization tool
