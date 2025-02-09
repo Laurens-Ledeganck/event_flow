@@ -1,0 +1,1 @@
+{'name': 'FullRotationModel', 'prev_runid': 'd85523b78a5d444889e72e23cd5ee1b4', 'use_existing': True, 'transfer_layer': 'pred', 'encoding': 'cnt', 'round_encoding': False, 'norm_input': False, 'num_bins': 2, 'base_num_channels': 32, 'kernel_size': 3, 'activations': ['relu', None], 'mask_output': True}

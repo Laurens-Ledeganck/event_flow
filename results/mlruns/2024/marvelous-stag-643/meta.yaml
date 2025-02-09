@@ -1,0 +1,15 @@
+artifact_uri: results/mlruns/2024/marvelous-stag-643/artifacts
+end_time: 1739025308047
+entry_point_name: ''
+experiment_id: '2024'
+lifecycle_stage: active
+run_id: marvelous-stag-643
+run_name: marvelous-stag-643
+run_uuid: d85523b78a5d444889e72e23cd5ee1b4
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1732054216886
+status: 3
+tags: []
+user_id: laure

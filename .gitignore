@@ -1,5 +1,8 @@
 testing*
-results
+results/mlruns/*/*/artifacts
+results/mlruns/42
+results/demo_videos
+
 __pycache__/
 datasets/data
 */visualization/models

@@ -1,0 +1,3 @@
+d85523b78a5d444889e72e23cd5ee1b4    Base flow model, FireNet
+cfc0bc5bc44e451bb21ef067eb9076f6    First rotation model, regular, absolute, quat
+b958af62753a4667a41d9924809de606    Second rotation model, regular, difference, rotvec

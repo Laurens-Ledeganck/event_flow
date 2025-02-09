@@ -1,0 +1,15 @@
+artifact_uri: results/mlruns/2024/bustling-goat-296/artifacts
+end_time: 1738610671837
+entry_point_name: ''
+experiment_id: '2024'
+lifecycle_stage: active
+run_id: bustling-goat-296
+run_name: bustling-goat-296
+run_uuid: afce97b4369d492abfaebde5669eacb9
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1738608982694
+status: 3
+tags: []
+user_id: laurens

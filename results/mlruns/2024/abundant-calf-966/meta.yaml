@@ -1,0 +1,15 @@
+artifact_uri: results/mlruns/2024/abundant-calf-966/artifacts
+end_time: null
+entry_point_name: ''
+experiment_id: '2024'
+lifecycle_stage: active
+run_id: abundant-calf-966
+run_name: abundant-calf-966
+run_uuid: f39803a6d11b4a0eaa868d196b71c860
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1732204751634
+status: 1
+tags: []
+user_id: laurens

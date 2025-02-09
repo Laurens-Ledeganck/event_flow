@@ -1,0 +1,16 @@
+FWL:
+  h5\boxes_6dof.h5: '1.5290456909752257'
+  h5\calibration.h5: '1.1412268873673774'
+  h5\dynamic_6dof.h5: '1.4523830223740555'
+  h5\office_zigzag.h5: '0.9022685430277182'
+  h5\poster_6dof.h5: '1.5399310263610786'
+  h5\shapes_6dof.h5: '1.3595196162179162'
+  h5\slider_depth.h5: '1.6420974237578256'
+RSAT:
+  h5\boxes_6dof.h5: '1.0065293664340034'
+  h5\calibration.h5: '0.9926602197883'
+  h5\dynamic_6dof.h5: '0.9922613042474169'
+  h5\office_zigzag.h5: '1.004704352035079'
+  h5\poster_6dof.h5: '1.0130207845269228'
+  h5\shapes_6dof.h5: '1.063310685261263'
+  h5\slider_depth.h5: '0.986054408053557'

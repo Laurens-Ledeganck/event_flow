@@ -26,21 +26,34 @@ def load_model(prev_runid, model, device):
     #model_dir = os.path.join(os.getcwd(), artifact_uri[artifact_uri.find('mlruns'):])
     if model_dir[:7] == "file://":
         model_dir = model_dir[7:]
+    artifact_uri = os.path.join(run.info.artifact_uri, 'model', 'data', 'model.pth')  # change
+    if os.name == 'nt':  # check if we're running on Windows  # change
+        artifact_uri = artifact_uri.replace("/", "\\")  # change
+    model_dir = os.path.join(os.getcwd(), artifact_uri)  # change
+    #model_dir = os.path.join(os.getcwd(), artifact_uri[artifact_uri.find('mlruns'):])
+    if model_dir[:7] == "file://":
+        model_dir = model_dir[7:]
 
+    print("Loading model from dir: ", model_dir)  # change
     print("Loading model from dir: ", model_dir)  # change
 
     if os.path.isfile(model_dir):
         model_loaded = torch.load(model_dir, map_location=device) 
         #model = model_loaded  # change
         model.load_state_dict(model_loaded.state_dict()) 
+        model_loaded = torch.load(model_dir, map_location=device) 
+        #model = model_loaded  # change
+        model.load_state_dict(model_loaded.state_dict()) 
         print("Model restored from " + prev_runid + "\n")
     else:
+        print("No model found at " + prev_runid + "\n")
         print("No model found at " + prev_runid + "\n")
 
     return model
 
 
 def create_model_dir(path_results, runid):
+    path_results = os.path.join(path_results, runid)  # change
     path_results = os.path.join(path_results, runid)  # change
     if not os.path.exists(path_results):
         os.makedirs(path_results)
@@ -64,9 +77,8 @@ def rename_run(path, run_id, run_name):  # new function
 
 
 def save_model(model):
-    print("saving model")
     mlflow.pytorch.log_model(model, "model")
-    print("saved model \n")
+    print("\nsaved model \n")  # change
 
 
 def save_csv(data, fname):

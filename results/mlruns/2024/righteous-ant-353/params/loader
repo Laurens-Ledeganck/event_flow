@@ -1,0 +1,1 @@
+{'resolution': [128, 128], 'batch_size': 8, 'augment': ['Horizontal', 'Vertical', 'Polarity'], 'gpu': 0, 'seed': 0, 'rotation_mode': 'difference', 'rotation_type': 'rotvec', 'n_epochs': 10, 'augment_prob': [0.0, 0.0, 0.0]}

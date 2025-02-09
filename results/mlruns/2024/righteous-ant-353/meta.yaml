@@ -1,0 +1,15 @@
+artifact_uri: results/mlruns/2024/righteous-ant-353/artifacts
+end_time: 1732758917485
+entry_point_name: ''
+experiment_id: '2024'
+lifecycle_stage: active
+run_id: righteous-ant-353
+run_name: righteous-ant-353
+run_uuid: 0a22b4ba3d854d5aac90dd4f7bf6037c
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1732749893953
+status: 3
+tags: []
+user_id: laure

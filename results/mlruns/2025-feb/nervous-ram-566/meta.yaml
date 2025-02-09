@@ -1,0 +1,15 @@
+artifact_uri: results/mlruns/2025-feb/nervous-ram-566/artifacts
+end_time: 1739133849249
+entry_point_name: ''
+experiment_id: 2025-feb
+lifecycle_stage: active
+run_id: nervous-ram-566
+run_name: nervous-ram-566
+run_uuid: nervous-ram-566
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1739131647107
+status: 3
+tags: []
+user_id: laurens
