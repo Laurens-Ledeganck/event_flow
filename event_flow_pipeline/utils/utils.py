@@ -79,6 +79,7 @@ def rename_run(path, run_id, run_name):  # new function
 def save_model(model):
     mlflow.pytorch.log_model(model, "model")
     print("\nsaved model \n")  # change
+    print("\nsaved model \n")  # change
 
 
 def save_csv(data, fname):
