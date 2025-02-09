@@ -38,7 +38,7 @@ from event_flow_pipeline.models.model import (
     XLIFRecEVFlowNet,
 )
 from event_flow_pipeline.utils.gradients import get_grads
-from event_flow_pipeline.utils.utils import load_model, save_csv, save_diff, save_model
+from event_flow_pipeline.utils.utils import load_model, save_csv, save_diff, save_model, rename_run
 from event_flow_pipeline.utils.visualization import Visualization
 
 from new_files.laurens_stuff import (
@@ -63,6 +63,14 @@ def train(args, config_parser):
     mlflow.log_params(config)
     mlflow.log_param("prev_runid", args.prev_runid)
     config = config_parser.combine_entries(config)
+    
+    run_id = mlflow.active_run().info.run_id
+    run_name = mlflow.active_run().info.run_name
+    artifact_uri = mlflow.active_run().info.artifact_uri
+    mlflow.end_run()
+    rename_run(path=artifact_uri[:artifact_uri.index(run_id)], run_id=run_id, run_name=run_name)
+    mlflow.start_run(run_id=run_name)
+
     print("MLflow dir:", mlflow.active_run().info.artifact_uri[:-9])
 
     # log git diff

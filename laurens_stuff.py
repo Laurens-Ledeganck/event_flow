@@ -30,36 +30,6 @@ class SimpleRotationModel(BaseModel):
             torch.nn.ReLU(),
             torch.nn.Linear(16, n_outputs)
         )
-        
-    def forward(self, X):
-        return self.layers(X)
-    
-
-# second attempt
-class ConvRotationModel(BaseModel):
-    # CNN
-    # TODO: make easier to modify
-    # TODO: implement spiking version
-
-    def __init__(self, input_size, n_outputs):
-        super().__init__()
-        self.conv_layers = torch.nn.Sequential(
-            torch.nn.Conv2d(input_size[2], 16, kernel_size=3, stride=2, padding=1),  # 128 -> 64
-            torch.nn.Conv2d(16, 8, kernel_size=3, stride=2, padding=1),  # 64 -> 32
-            torch.nn.Conv2d(8, 4, kernel_size=3, stride=2, padding=1),  # 32 -> 16
-        )
-        n_middle = self.conv_layers(torch.random(tuple([1] + input_size))).reshape(1, -1).shape[1]
-        self.linear_layers = torch.nn.Sequential(
-            torch.nn.Linear(n_middle, 64),
-            torch.nn.ReLU(),
-            torch.nn.Linear(64, 64),
-            torch.nn.ReLU(),
-            torch.nn.Linear(64, n_outputs)
-        )
-        self.layers = torch.nn.Sequential(
-            self.conv_layers, 
-            self.linear_layers
-        )
     
     def forward(self, X):
         return self.layers(X)
@@ -67,7 +37,7 @@ class ConvRotationModel(BaseModel):
 
 # integrating everything
 class FullRotationModel(BaseModel):
-    # the following was adapted from the FireNet code
+    # the following was copy-pasted from the FireNet code
 
     def __init__(self, unet_kwargs):
         super().__init__()
@@ -98,17 +68,14 @@ class FullRotationModel(BaseModel):
         self.rotation_type = unet_kwargs["rotation_type"]
         self.n_outputs = self.get_n_outputs()
 
-        if unet_kwargs["model_type"] == ('conv' or 'conv_model' or 'ConvRotationModel'):
-            self.rotation_model = ConvRotationModel(n_inputs=self.transfer_size, n_outputs=self.n_outputs)
-        else:
-            self.rotation_model = SimpleRotationModel(n_inputs=self.n_transfers, n_outputs=self.n_outputs)
+        self.rotation_model = SimpleRotationModel(n_inputs=self.n_transfers, n_outputs=self.n_outputs)
     
-    def transfer_hook(self, module, input, output):  # should I use output[0] or not?
+    def transfer_hook(self, module, input, output):
         if self.transfer_size is None: 
-            self.transfer_size = output.shape
+            self.transfer_size = output[0].shape
         if self.n_transfers is None: 
-            self.n_transfers = len(torch.flatten(output[0]))
-        self.current_transfer = output
+            self.n_transfers = len(torch.flatten(output[0][0]))
+        self.current_transfer = output[0]
     
     def get_n_transfers(self):
         # first, set the hook on the transfer layer

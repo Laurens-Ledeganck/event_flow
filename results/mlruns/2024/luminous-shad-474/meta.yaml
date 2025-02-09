@@ -1,0 +1,15 @@
+artifact_uri: results/mlruns/2024/luminous-shad-474/artifacts
+end_time: 1738612567739
+entry_point_name: ''
+experiment_id: '2024'
+lifecycle_stage: active
+run_id: luminous-shad-474
+run_name: luminous-shad-474
+run_uuid: f8f191f74e9d43c3a4fee714782027f3
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1738610822726
+status: 3
+tags: []
+user_id: laurens

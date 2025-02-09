@@ -1,0 +1,15 @@
+artifact_uri: results/mlruns/2024/skittish-shoat-953/artifacts
+end_time: 1739026510100
+entry_point_name: ''
+experiment_id: '2024'
+lifecycle_stage: active
+run_id: skittish-shoat-953
+run_name: skittish-shoat-953
+run_uuid: 52a74943e17848348548afd8c659d3d8
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1739023233934
+status: 3
+tags: []
+user_id: laurens
