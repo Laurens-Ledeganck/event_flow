@@ -6,6 +6,7 @@
 # Task E: try different losses, architectures to obtain good performance
 
 import argparse
+import datetime
 
 import mlflow
 import torch
@@ -38,7 +39,7 @@ from event_flow_pipeline.models.model import (
     XLIFRecEVFlowNet,
 )
 from event_flow_pipeline.utils.gradients import get_grads
-from event_flow_pipeline.utils.utils import load_model, save_csv, save_diff, save_model
+from event_flow_pipeline.utils.utils import load_model, save_csv, save_diff, save_model, rename_run, log_to_overview
 from event_flow_pipeline.utils.visualization import Visualization
 
 from new_files.laurens_stuff import (
@@ -63,6 +64,14 @@ def train(args, config_parser):
     mlflow.log_params(config)
     mlflow.log_param("prev_runid", args.prev_runid)
     config = config_parser.combine_entries(config)
+
+    run_id = mlflow.active_run().info.run_id
+    run_name = mlflow.active_run().info.run_name
+    artifact_uri = mlflow.active_run().info.artifact_uri
+    mlflow.end_run()
+    rename_run(path=artifact_uri[:artifact_uri.index(run_id)], run_id=run_id, run_name=run_name)
+    mlflow.start_run(run_id=run_name)
+
     print("MLflow dir:", mlflow.active_run().info.artifact_uri[:-9])
 
     # log git diff
@@ -122,6 +131,15 @@ def train(args, config_parser):
         **kwargs,
     )
 
+    # create first log
+    log_to_overview({
+        'timestamp': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        'run_name': run_name, 
+        'model_type': config['model']['name'],
+        'architecture': str(model).replace('\n', ' '),
+        'params': config
+    }, path=args.path_mlflow)
+
     # simulation variables
     train_loss = 0
     best_loss = 1.0e6
@@ -147,6 +165,14 @@ def train(args, config_parser):
                     if train_loss / (data.samples + 1) < best_loss:
                         save_model(model)
                         best_loss = train_loss / (data.samples + 1)
+                        log_to_overview({
+                            'timestamp': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                            'run_name': run_name, 
+                            'model_type': config['model']['name'],
+                            'loss': best_loss,
+                            'architecture': str(model).replace('\n', ' '),
+                            'params': config
+                        }, path=args.path_mlflow, replace_last=True)
 
                 data.epoch += 1
                 data.samples = 0
