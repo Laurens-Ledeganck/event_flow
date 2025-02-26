@@ -221,25 +221,39 @@ class ModifiedH5Loader(H5Loader):
         self.rotation_type = config["loader"]["rotation_type"]
 
         # self.original_getitem = super().__getitem__
+    
+    def get_start_end_times(self):
+        """
+        This function returns 2 tuples, start_time and end_time, resp. the first and last timestamp in each file's ground_truth data.
+        """
+        start_times, end_times = [], []
+        for file_path in self.files:
+            with h5py.File(file_path, 'r') as file:
+                start_times += [file['ground_truth/timestamp'][0] - file.attrs['gt0']]
+                end_times += [file['ground_truth/timestamp'][-1] - file.attrs['gt0']]
+        return start_times, end_times
 
-    def get_rotation_index(self, file, t1, t2):
+    def get_gt_index(self, file, t1, t2):
         if t2 < file["ground_truth/timestamp"][0] - file.attrs["t0"]:
+            # if the interval occurs before the gt data, simply provide the first row
             idx1 = 0
             idx2 = 1
         elif file["ground_truth/timestamp"][-1] - file.attrs["t0"] < t1:
+            # if the interval occurs after the gt data, simply provide the last row
             idx1 = -1
             idx2 = None
         else: 
             idxs = np.where((t1 < (file["ground_truth/timestamp"] - file.attrs["t0"])) 
                     & ((file["ground_truth/timestamp"] - file.attrs["t0"]) < t2))[0]
-            idx1 = idxs[0]
-            idx2 = idxs[-1] + 1
+            idx1 = idxs[0] - 1 if idxs[0]!= 0 else idxs[0]
+            idx2 = idxs[-1] + 1 if idxs[-1] != len(file["ground_truth/timestamp"])-1 else idxs[-1]
         # TODO: implement error handling: what if torch.where is empty? 
         return idx1, idx2
 
-    def get_rotation(self, file, t1, t2):
-        idx1, idx2 = self.get_rotation_index(file, t1, t2)
+    def get_translation_rotation(self, file, t1, t2):
+        idx1, idx2 = self.get_gt_index(file, t1, t2)
 
+        timestamps = file["ground_truth/timestamp"][idx1:idx2]
         tx = file["ground_truth/tx"][idx1:idx2]
         ty = file["ground_truth/ty"][idx1:idx2]
         tz = file["ground_truth/tz"][idx1:idx2]
@@ -247,6 +261,17 @@ class ModifiedH5Loader(H5Loader):
         qy = file["ground_truth/qy"][idx1:idx2]
         qz = file["ground_truth/qz"][idx1:idx2]
         qw = file["ground_truth/qw"][idx1:idx2] 
+
+        timestamps = torch.tensor(timestamps)
+
+        t = np.transpose(np.vstack((tx, ty, tz)))
+        if self.rotation_mode == "absolute":
+            t = np.mean(t, axis=0)  # TODO maybe this should also be t[-1]?
+        elif self.rotation_mode == "difference":
+            t = t[-1] - t[0]
+        elif self.rotation_mode == "zero-offset":
+            t = np.mean(t, axis=0) - file.attrs["gt0"][1:4]  # TODO maybe this should also be t[-1]?
+        t = torch.flatten(torch.tensor(t, dtype=torch.float32))
 
         r = np.transpose(np.vstack((qx, qy, qz, qw)))
         if self.rotation_mode == "absolute":
@@ -265,15 +290,16 @@ class ModifiedH5Loader(H5Loader):
         elif self.rotation_type == "euler":
             r = r.as_euler("xyz", degrees=False)
         
-        t = torch.flatten(torch.tensor(r, dtype=torch.float32))
-        if torch.isnan(t).any():
-            raise ValueError(f"NaN value detected in ground truth: t1 = {t1}, t2 = {t2}, idx1 = {idx1}, idx2 = {idx2}, qx = {qx}, t = {t}")
+        r = torch.flatten(torch.tensor(r, dtype=torch.float32))
+        
+        if torch.isnan(t).any() or torch.isnan(r).any():
+            raise ValueError(f"NaN value detected in ground truth: t1 = {t1}, t2 = {t2}, idx1 = {idx1}, idx2 = {idx2}, qx = {qx}, t = {r}")
 
-        return t
+        return timestamps, t, r
 
     def __getitem__(self, index):
         """
-        Largely a copy of Jesse's funcion, but includes a get_rotation function. 
+        Largely a copy of Jesse's funcion, but includes a get_translation_rotation function. 
         Changes are marked with a '# laurens' comment.
         """
         while True:
@@ -321,6 +347,11 @@ class ModifiedH5Loader(H5Loader):
 
                 xs, ys, ts, ps = self.get_events(self.open_files[batch], idx0, idx1)
 
+                if ts.shape[0] > 0:  # laurens
+                    gt_ts, t, r = self.get_translation_rotation(self.open_files[batch], ts[0], ts[-1])  # laurens
+                    gt_dt = gt_ts[-1] - gt_ts[0]  # laurens
+                    gt_time = gt_ts[0] - self.open_files[batch].attrs['gt0']  # laurens
+
             # trigger sequence change
             if (self.config["data"]["mode"] == "events" and xs.shape[0] < self.config["data"]["window"]) or (
                 self.config["data"]["mode"] == "time"
@@ -334,6 +365,11 @@ class ModifiedH5Loader(H5Loader):
                 ys = np.empty([0])
                 ts = np.empty([0])
                 ps = np.empty([0])
+
+                t = np.empty(3)  # laurens
+                r = np.empty(3)  # laurens
+                gt_dt = 0  # laurens
+                gt_time = 0  # laurens  # TODO: check if this is the right approach
 
             # reset sequence if not enough input events
             if restart:
@@ -365,8 +401,6 @@ class ModifiedH5Loader(H5Loader):
                     )
 
                 continue
-            
-            r = self.get_rotation(self.open_files[batch], ts[0], ts[-1])  # laurens
 
             # event formatting and timestamp normalization
             dt_input = np.asarray(0.0)
@@ -439,6 +473,9 @@ class ModifiedH5Loader(H5Loader):
         output["dt_gt"] = torch.from_numpy(dt_gt)
         output["dt_input"] = torch.from_numpy(dt_input)
 
+        output["gt_time"] = gt_time  # laurens
+        output["gt_dt"] = gt_dt  # laurens
+        output["gt_translation"] = t  # laurens
         output["gt_rotation"] = r  # laurens
 
         return output
