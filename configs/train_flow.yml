@@ -9,8 +9,6 @@ data:
 model:
     name: FullRotationModel
     model_type: conv
-    rotation_mode: difference
-    rotation_type: rotvec
     use_existing: true
     prev_runid: nervous-ram-566
     transfer_layer: pred
@@ -39,7 +37,7 @@ optimizer:
 
 loader:
     rotation_mode: difference  # absolute / difference / zero-offset  # new
-    rotation_type: rotvec  # quat / rotvec / matrix / euler  # new
+    rotation_type: matrix  # quat / rotvec / matrix / euler / euler_deg  # new
     n_epochs: 100
     batch_size: 8
     resolution: [128, 128] # H x W

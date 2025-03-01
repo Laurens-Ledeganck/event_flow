@@ -45,8 +45,9 @@ class ConvRotationModel(BaseModel):
         super().__init__()
         self.conv_layers = torch.nn.Sequential(
             torch.nn.Conv2d(input_size[1], 16, kernel_size=3, stride=2, padding=1),  # 128 -> 64
-            torch.nn.Conv2d(16, 8, kernel_size=3, stride=2, padding=1),  # 64 -> 32
-            torch.nn.Conv2d(8, 4, kernel_size=3, stride=2, padding=1),  # 32 -> 16
+            torch.nn.Conv2d(16, 32, kernel_size=3, stride=2, padding=1),  # 64 -> 32
+            #torch.nn.Conv2d(16, 8, kernel_size=3, stride=2, padding=1),  # 64 -> 32
+            #torch.nn.Conv2d(8, 4, kernel_size=3, stride=2, padding=1),  # 32 -> 16
         )
         n_middle = self.conv_layers(torch.randn(input_size)).reshape(input_size[0], -1).shape[1]
         self.linear_layers = torch.nn.Sequential(
@@ -128,7 +129,7 @@ class FullRotationModel(BaseModel):
         return self.n_transfers
     
     def get_n_outputs(self):
-        if self.rotation_type == "rotvec" or self.rotation_type == "euler":
+        if self.rotation_type == "rotvec" or self.rotation_type == "euler" or self.rotation_type == "euler_deg":
             return 3
         elif self.rotation_type == "quat":
             return 4
@@ -289,13 +290,14 @@ class ModifiedH5Loader(H5Loader):
             r = r.as_matrix()
         elif self.rotation_type == "euler":
             r = r.as_euler("xyz", degrees=False)
+        elif self.rotation_type == "euler_deg":
+            r = r.as_euler("xyz", degrees=True)
         
         r = torch.flatten(torch.tensor(r, dtype=torch.float32))
-        
-        if torch.isnan(t).any() or torch.isnan(r).any():
-            raise ValueError(f"NaN value detected in ground truth: t1 = {t1}, t2 = {t2}, idx1 = {idx1}, idx2 = {idx2}, qx = {qx}, t = {r}")
+        if torch.isnan(r).any():
+            raise ValueError(f"NaN value detected in ground truth: t1 = {t1}, t2 = {t2}, idx1 = {idx1}, idx2 = {idx2}, qx = {qx}, r = {r}")
 
-        return timestamps, t, r
+        return r
 
     def __getitem__(self, index):
         """

@@ -1,0 +1,15 @@
+artifact_uri: results/mlruns/2025-feb/trusting-toad-636/artifacts
+end_time: 1740850393394
+entry_point_name: ''
+experiment_id: 2025-feb
+lifecycle_stage: active
+run_id: trusting-toad-636
+run_name: trusting-toad-636
+run_uuid: trusting-toad-636
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1740849449795
+status: 3
+tags: []
+user_id: laurens
