@@ -1,0 +1,15 @@
+artifact_uri: results/mlruns/2025-feb/gregarious-bird-447/artifacts
+end_time: 1740922181188
+entry_point_name: ''
+experiment_id: 2025-feb
+lifecycle_stage: active
+run_id: gregarious-bird-447
+run_name: gregarious-bird-447
+run_uuid: gregarious-bird-447
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1740920232803
+status: 3
+tags: []
+user_id: laurens

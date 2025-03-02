@@ -292,12 +292,12 @@ class ModifiedH5Loader(H5Loader):
             r = r.as_euler("xyz", degrees=False)
         elif self.rotation_type == "euler_deg":
             r = r.as_euler("xyz", degrees=True)
-        
         r = torch.flatten(torch.tensor(r, dtype=torch.float32))
-        if torch.isnan(r).any():
-            raise ValueError(f"NaN value detected in ground truth: t1 = {t1}, t2 = {t2}, idx1 = {idx1}, idx2 = {idx2}, qx = {qx}, r = {r}")
+        
+        if torch.isnan(t).any() or torch.isnan(r).any():
+            raise ValueError(f"NaN value detected in ground truth: t1 = {t1}, t2 = {t2}, idx1 = {idx1}, idx2 = {idx2}, qx = {qx}, t = {r}")
 
-        return r
+        return timestamps, t, r
 
     def __getitem__(self, index):
         """
