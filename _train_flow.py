@@ -42,7 +42,7 @@ from event_flow_pipeline.utils.gradients import get_grads
 from event_flow_pipeline.utils.utils import load_model, save_csv, save_diff, save_model, rename_run, log_to_overview
 from event_flow_pipeline.utils.visualization import Visualization
 
-from new_files.laurens_stuff import (
+from new_files.rotation_utils import (
     FullRotationModel,
     RotationLoss, 
     ModifiedH5Loader
@@ -190,7 +190,10 @@ def train(args, config_parser):
                     end_train = True
 
             # forward pass
-            x = model(inputs["event_voxel"].to(device), inputs["event_cnt"].to(device))
+            if rotation and model.include_init:
+                x = model(inputs["event_voxel"].to(device), inputs["event_cnt"].to(device), inputs["gt_r_init"].to(device))
+            else: 
+                x = model(inputs["event_voxel"].to(device), inputs["event_cnt"].to(device))
 
             # event flow association
             if rotation: 

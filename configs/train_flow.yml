@@ -12,6 +12,7 @@ model:
     use_existing: true
     prev_runid: nervous-ram-566
     transfer_layer: pred
+    include_init: True
 
     #name: FireNet # EVFlowNet/*FireFlowNet/*FireNet/E2VID/RecEVFlowNet
     

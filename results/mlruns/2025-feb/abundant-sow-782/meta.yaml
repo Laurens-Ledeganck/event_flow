@@ -1,0 +1,15 @@
+artifact_uri: results/mlruns/2025-feb/abundant-sow-782/artifacts
+end_time: 1740944687477
+entry_point_name: ''
+experiment_id: 2025-feb
+lifecycle_stage: active
+run_id: abundant-sow-782
+run_name: abundant-sow-782
+run_uuid: abundant-sow-782
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1740944073405
+status: 3
+tags: []
+user_id: laure

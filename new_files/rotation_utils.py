@@ -19,8 +19,10 @@ class SimpleRotationModel(BaseModel):
     # TODO: make easier to modify
     # TODO: implement spiking version
 
-    def __init__(self, n_inputs, n_outputs):
+    def __init__(self, n_inputs, n_outputs, n_init=0):
         super().__init__()
+        self.n_init = n_init
+        if self.n_init: n_inputs += self.n_init
         self.layers = torch.nn.Sequential(
             torch.nn.Linear(n_inputs, 1024),
             torch.nn.ReLU(),
@@ -31,7 +33,9 @@ class SimpleRotationModel(BaseModel):
             torch.nn.Linear(16, n_outputs)
         )
         
-    def forward(self, X):
+    def forward(self, X, init_rot=None):
+        if init_rot: 
+            X = torch.concat((X, init_rot))
         return self.layers(X)
     
 
@@ -41,15 +45,19 @@ class ConvRotationModel(BaseModel):
     # TODO: make easier to modify
     # TODO: implement spiking version
 
-    def __init__(self, input_size, n_outputs):
+    def __init__(self, input_size, n_outputs, n_init=0):
         super().__init__()
+        self.n_init = n_init
         self.conv_layers = torch.nn.Sequential(
             torch.nn.Conv2d(input_size[1], 16, kernel_size=3, stride=2, padding=1),  # 128 -> 64
             torch.nn.Conv2d(16, 32, kernel_size=3, stride=2, padding=1),  # 64 -> 32
             #torch.nn.Conv2d(16, 8, kernel_size=3, stride=2, padding=1),  # 64 -> 32
             #torch.nn.Conv2d(8, 4, kernel_size=3, stride=2, padding=1),  # 32 -> 16
         )
+
         n_middle = self.conv_layers(torch.randn(input_size)).reshape(input_size[0], -1).shape[1]
+        if self.n_init: n_middle += self.n_init
+
         self.linear_layers = torch.nn.Sequential(
             torch.nn.Linear(n_middle, 64),
             torch.nn.ReLU(),
@@ -57,14 +65,19 @@ class ConvRotationModel(BaseModel):
             torch.nn.ReLU(),
             torch.nn.Linear(64, n_outputs)
         )
+
         self.layers = torch.nn.Sequential(
             self.conv_layers, 
             torch.nn.Flatten(),
             self.linear_layers
         )
     
-    def forward(self, X):
-        return self.layers(X)
+    def forward(self, X, init_rot=None):
+        X = self.conv_layers(X)
+        X = X.reshape(X.shape[0], -1)
+        if init_rot is not None: 
+            X = torch.concat((X, init_rot), dim=-1)
+        return self.linear_layers(X)
     
 
 # integrating everything
@@ -97,16 +110,18 @@ class FullRotationModel(BaseModel):
         self.transfer_layer = unet_kwargs["transfer_layer"]
         self.get_n_transfers()  # will update self.transfer_size and self.n_transfers
 
+        self.include_init = unet_kwargs["include_init"]
+
         self.rotation_mode = unet_kwargs["rotation_mode"]
         self.rotation_type = unet_kwargs["rotation_type"]
-        self.n_outputs = self.get_n_outputs()
+        self.n_outputs = self.get_n_rotation_nodes()
 
         if unet_kwargs["model_type"] == ('conv' or 'conv_model' or 'ConvRotationModel'):
             self.model_type = 'conv'
-            self.rotation_model = ConvRotationModel(input_size=list(self.transfer_size), n_outputs=self.n_outputs)
+            self.rotation_model = ConvRotationModel(input_size=list(self.transfer_size), n_outputs=self.n_outputs, n_init=(self.include_init*self.get_n_rotation_nodes()))
         else:
             self.model_type = 'linear'
-            self.rotation_model = SimpleRotationModel(n_inputs=self.n_transfers, n_outputs=self.n_outputs)
+            self.rotation_model = SimpleRotationModel(n_inputs=self.n_transfers, n_outputs=self.n_outputs, n_init=(self.include_init*self.get_n_rotation_nodes()))
     
     def transfer_hook(self, module, input, output):  # should I use output[0] or not?
         if self.transfer_size is None: 
@@ -128,8 +143,8 @@ class FullRotationModel(BaseModel):
         hook.remove()
         return self.n_transfers
     
-    def get_n_outputs(self):
-        if self.rotation_type == "rotvec" or self.rotation_type == "euler" or self.rotation_type == "euler_deg":
+    def get_n_rotation_nodes(self):
+        if self.rotation_type == "rotvec" or self.rotation_type.startswith("euler"):
             return 3
         elif self.rotation_type == "quat":
             return 4
@@ -164,7 +179,7 @@ class FullRotationModel(BaseModel):
     # def init_cropping(self, width, height):
     #     pass
 
-    def forward(self, event_voxel, event_cnt, log=False):
+    def forward(self, event_voxel, event_cnt, init_rot=None, log=False):
         """
         :param event_voxel: N x num_bins x H x W
         :param event_cnt: N x 2 x H x W per-polarity event cnt and average timestamp
@@ -173,6 +188,7 @@ class FullRotationModel(BaseModel):
         """
         event_cnt = event_cnt.to(self.device)
         event_voxel = event_voxel.to(self.device)   
+        if init_rot is not None: init_rot.to(self.device)
 
         # forward pass
         hook = getattr(self.flow_model, self.transfer_layer).register_forward_hook(self.transfer_hook)
@@ -185,7 +201,13 @@ class FullRotationModel(BaseModel):
         else: 
             transfer = self.current_transfer
 
-        r = self.rotation_model(transfer)
+        if self.include_init: 
+            if init_rot is not None: 
+                r = self.rotation_model(transfer, init_rot)
+            else: 
+                raise ValueError("Please provide a valid init_rot")
+        else: 
+            r = self.rotation_model(transfer)
         
         hook.remove()
 
@@ -251,7 +273,7 @@ class ModifiedH5Loader(H5Loader):
         # TODO: implement error handling: what if torch.where is empty? 
         return idx1, idx2
 
-    def get_translation_rotation(self, file, t1, t2):
+    def get_time_translation_rotation(self, file, t1, t2):
         idx1, idx2 = self.get_gt_index(file, t1, t2)
 
         timestamps = file["ground_truth/timestamp"][idx1:idx2]
@@ -264,19 +286,27 @@ class ModifiedH5Loader(H5Loader):
         qw = file["ground_truth/qw"][idx1:idx2] 
 
         timestamps = torch.tensor(timestamps)
+        dtimestamps = timestamps[-1] - timestamps[0]
+        timestamp1 = timestamps[0] - file.attrs['gt0']
 
         t = np.transpose(np.vstack((tx, ty, tz)))
+        t1 = t[0]
         if self.rotation_mode == "absolute":
-            t = np.mean(t, axis=0)  # TODO maybe this should also be t[-1]?
+            t = t[-1]
+            #t = np.mean(t, axis=0)  
         elif self.rotation_mode == "difference":
             t = t[-1] - t[0]
         elif self.rotation_mode == "zero-offset":
             t = np.mean(t, axis=0) - file.attrs["gt0"][1:4]  # TODO maybe this should also be t[-1]?
         t = torch.flatten(torch.tensor(t, dtype=torch.float32))
+        t1 = torch.flatten(torch.tensor(t1, dtype=torch.float32))
+        
 
         r = np.transpose(np.vstack((qx, qy, qz, qw)))
+        r1 = Rotation.from_quat(r[0])
         if self.rotation_mode == "absolute":
-            r = Rotation.from_quat(np.mean(r, axis=0))  # TODO maybe this should also be r[-1]?
+            r = Rotation.from_quat(r[-1])
+            #r = Rotation.from_quat(np.mean(r, axis=0)) 
         elif self.rotation_mode == "difference":
             r = Rotation.from_quat(r[-1]) * Rotation.from_quat(r[0]).inv()
         elif self.rotation_mode == "zero-offset":
@@ -284,20 +314,27 @@ class ModifiedH5Loader(H5Loader):
         
         if self.rotation_type == "quat":
             r = r.as_quat()
+            r1 = r1.as_quat()
         elif self.rotation_type == "rotvec":
             r = r.as_rotvec()
+            r1 = r1.as_rotvec()
         elif self.rotation_type == "matrix":
             r = r.as_matrix()
+            r1 = r1.as_matrix()
         elif self.rotation_type == "euler":
             r = r.as_euler("xyz", degrees=False)
+            r1 = r1.as_euler("xyz", degrees=False)
         elif self.rotation_type == "euler_deg":
             r = r.as_euler("xyz", degrees=True)
-        r = torch.flatten(torch.tensor(r, dtype=torch.float32))
+            r1 = r1.as_euler("xyz", degrees=True)
         
+        r = torch.flatten(torch.tensor(r, dtype=torch.float32))
+        r1 = torch.flatten(torch.tensor(r1, dtype=torch.float32))
+
         if torch.isnan(t).any() or torch.isnan(r).any():
             raise ValueError(f"NaN value detected in ground truth: t1 = {t1}, t2 = {t2}, idx1 = {idx1}, idx2 = {idx2}, qx = {qx}, t = {r}")
 
-        return timestamps, t, r
+        return timestamp1, dtimestamps, t1, t, r1, r
 
     def __getitem__(self, index):
         """
@@ -350,9 +387,7 @@ class ModifiedH5Loader(H5Loader):
                 xs, ys, ts, ps = self.get_events(self.open_files[batch], idx0, idx1)
 
                 if ts.shape[0] > 0:  # laurens
-                    gt_ts, t, r = self.get_translation_rotation(self.open_files[batch], ts[0], ts[-1])  # laurens
-                    gt_dt = gt_ts[-1] - gt_ts[0]  # laurens
-                    gt_time = gt_ts[0] - self.open_files[batch].attrs['gt0']  # laurens
+                    gt_time, gt_dt, t_init, t, r_init, r = self.get_time_translation_rotation(self.open_files[batch], ts[0], ts[-1])  # laurens
 
             # trigger sequence change
             if (self.config["data"]["mode"] == "events" and xs.shape[0] < self.config["data"]["window"]) or (
@@ -368,10 +403,17 @@ class ModifiedH5Loader(H5Loader):
                 ts = np.empty([0])
                 ps = np.empty([0])
 
-                t = np.empty(3)  # laurens
-                r = np.empty(3)  # laurens
-                gt_dt = 0  # laurens
-                gt_time = 0  # laurens  # TODO: check if this is the right approach
+                t = np.empty([0])  # laurens
+                t_init = np.empty([0])  # laurens
+                r = np.empty([0])  # laurens
+                r_init = np.empty([0])  # laurens
+                # TODO: check if this is the right approach, the code below seemed more logical but failed
+                # if self.rotation_mode == "difference":  # laurens
+                #     t = np.empty(len(t))  # laurens
+                #     r = np.empty(len(r))  # laurens
+                # elif self.rotation_mode == "absolute": # laurens 
+                #     t = t_init  # laurens
+                #     r = r_init  # laurens
 
             # reset sequence if not enough input events
             if restart:
@@ -477,7 +519,9 @@ class ModifiedH5Loader(H5Loader):
 
         output["gt_time"] = gt_time  # laurens
         output["gt_dt"] = gt_dt  # laurens
+        output["gt_t_init"] = t_init  # laurens
         output["gt_translation"] = t  # laurens
+        output["gt_r_init"] = r_init  # laurens
         output["gt_rotation"] = r  # laurens
 
         return output
