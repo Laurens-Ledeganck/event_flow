@@ -1,0 +1,4 @@
+artifact_location: results/mlruns/2025-may
+experiment_id: '2025-may'
+lifecycle_stage: active
+name: Default

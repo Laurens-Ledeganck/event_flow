@@ -1,11 +1,22 @@
 """MLFlow + W&B version"""
 
 # TODO: 
-# Task A: clean up code, set up clear pipeline
-# Task B: convert more rotation data 
-# Task C: investigate MSE discrepancy 
-# Task D: train EVFLowNet
-# Task E: try different losses, architectures to obtain good performance
+# get code set up
+# maybe reorganize code?
+# TOMORROW
+# set up training data
+# read through Jesse2021 & Paredes-Valles2023 to find research gaps
+# find literature on rotation targets & losses
+# set up new loss functions
+# maybe reorganize code?
+# set up experiments + minitasks for the week
+# NEXT WEEK
+# try different targets
+# optimize loss function for each target
+# NEXT WEEKEND
+# have a look at self-supervised learning
+# have a look at other datasets
+# have a look at event simulation
 
 import argparse
 import datetime
@@ -77,6 +88,7 @@ def train(args, config_parser, alert=None):
     run_name = mlflow.active_run().info.run_name
     artifact_uri = mlflow.active_run().info.artifact_uri
     mlflow.end_run()
+    run_name = str(datetime.date.today().day)+'-'+str(datetime.date.today().month)+'-'+run_name.split('-')[0]+'-'+run_name.split('-')[1]
     rename_run(path=artifact_uri[:artifact_uri.index(run_id)], run_id=run_id, run_name=run_name)
     mlflow.start_run(run_id=run_name)
 
@@ -90,7 +102,7 @@ def train(args, config_parser, alert=None):
         config=config,
         notes=args.note,
         mode= "disabled" if (args.use_wandb.strip().lower() == "false") else "online",
-        resume="allow",  
+        resume="never",  
     )
 
     # log git diff
@@ -296,6 +308,7 @@ def train(args, config_parser, alert=None):
             level="INFO"
         )
     run.finish()  # for wandb
+    return run, best_loss
 
 
 if __name__ == "__main__":

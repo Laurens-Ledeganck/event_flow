@@ -1,0 +1,1 @@
+{'name': 'FullRotationModel', 'model_type': 'conv', 'use_existing': True, 'prev_runid': 'nervous-ram-566', 'transfer_layer': 'pred', 'include_init': False, 'encoding': 'cnt', 'round_encoding': False, 'norm_input': False, 'num_bins': 2, 'base_num_channels': 32, 'kernel_size': 3, 'activations': ['relu', None], 'mask_output': True}

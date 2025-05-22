@@ -73,9 +73,12 @@ def convert_groundtruth_to_hd5(data_dir, ground_truth_file, file_to_write, low=0
 def modify_existing(h5_data_dir, txt_data_dir, partial_name, ground_truth_file='groundtruth.txt'):
     ts = np.genfromtxt(txt_data_dir + '/' + ground_truth_file, delimiter=' ', skip_header=1)[:, 0]
 
-    for i in range(13):
+    files = os.listdir(h5_data_dir)
+    files = list(filter(lambda file: partial_name in file, files))
+    for i in range(len(files)):
     
         file_to_read = partial_name + '_' + str(i) + '.h5'
+        assert file_to_read in files
         file_to_cache = partial_name[:-2] + 'temp_' + str(i) + '.h5'
         file_to_write = partial_name[:-2] + 'rotation_' + str(i) + '.h5'
         shutil.copy(h5_data_dir + '/' + file_to_read, txt_data_dir + '/' + file_to_cache)
@@ -108,7 +111,7 @@ def modify_existing(h5_data_dir, txt_data_dir, partial_name, ground_truth_file='
 if __name__ == '__main__':
     new_data_dir = 'datasets/data/rotation_demo'
     h5_data_dir = 'datasets/data/training'
-    txt_data_dir = 'datasets/data/txt/indoor_forward_3_davis_with_gt'
+    txt_data_dir = 'datasets/data/txt/'
     events_file = 'events.txt'
     ground_truth_file = 'groundtruth.txt'
     #file_to_write = 'test.h5'  # 'indoor_forward_3_davis_with_gt_0.h5'
@@ -116,6 +119,9 @@ if __name__ == '__main__':
     #convert_events_to_hd5(data_dir, events_file, file_to_write)  # takes ~15 mins
     #convert_groundtruth_to_hd5(data_dir, ground_truth_file, file_to_write)
     #inspect_hd5(h5_data_dir, 'indoor_forward_3_davis_with_gt_3.h5')
-    modify_existing(h5_data_dir, txt_data_dir, partial_name='indoor_forward_3_davis_with_gt')
+    for n in [5, 7, 9, 10]:
+        partial_name = f'indoor_forward_{n}_davis_with_gt'
+        txt_data_dir_ = txt_data_dir + partial_name
+        modify_existing(h5_data_dir, txt_data_dir_, partial_name=partial_name)
 
     print('Done.')

@@ -1,0 +1,7 @@
+logic	loader.n_epochs	optimizer.lr	note
+			
+			
+			
+START	1	0.0002	this
+STOP	1	0.002	works
+	1	0.02	!!!

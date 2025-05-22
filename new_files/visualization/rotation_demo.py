@@ -2,8 +2,9 @@
 WORK IN PROGRESS
 
 Tomorrow: 
-1 - reshape matrix outputs
-2 - train proper model using euler_deg and init & one using quat and absolute
+1 - check matrix visualization
+2 - check data augmentation
+3 - manually evaluate models
 
 Main issues:
 1) Fixing code
@@ -43,8 +44,8 @@ Note: for the paths, assume event_flow directory
 # settings
 config_file = 'configs/train_flow.yml'
 model_file = 'results/mlruns/2025-feb/model-name/artifacts/model/data/model.pth'
-model_file = model_file.replace('model-name', 'respected-koi-704')  # eg 'suave-conch-448'  or  'trusting-toad-636' 
-data_dir = 'datasets/data/rotation_demo'
+model_file = model_file.replace('model-name', 'adorable-ape-20')  # eg 'respected-koi-704' or 'gifted-dolphin-886'
+data_dir = 'datasets/data/rotation_test/indoor_forward_5'
 
 #data_dir = 'testing/indoor_forward_3'  # path to the directory where the relevant files are located
 # event_file = 'events.txt'  # file with the event data
@@ -58,7 +59,7 @@ data_dir = 'datasets/data/rotation_demo'
 noise_margin = 1.  # m, tune this to find the right orientation
 
 save = True  # save as well as plot, setting to False will enable logging
-file_to_write = 'model_indoor_forward_3_test.mp4'  # name of the output file
+file_to_write = 'model_test.mp4'  # name of the output file
 dt = 0.01  # s, the time between each frame
 speed = 1  # the speed for the saved video wrt the original speed
 
@@ -143,7 +144,7 @@ def initialize():  # adapted from the other file
     init_time = 0  # TODO fix rotation in plot to remove the take-off phase
     init_time, init_pos, init_rot, rot_offset = find_init_data(data, init_dataloader, init_time)
 
-    data -= np.array([init_time] + list(init_pos) + [0, 0, 0, 0])
+    data -= np.array([0] + list(init_pos) + [0, 0, 0, 0])
 
     fig, ax, model_ax, im_ax, ev_ax, imu_axs, limits, spread = initialize_plots(data, images) 
     
@@ -321,7 +322,7 @@ def update(inp, data, fig, ax, limits, ev_ax, im_ax, imgs, imu_axs, accs, orient
         current_idx = np.where(data[:,0] == current_time)[0][0]  # index of latest gt entry
     except IndexError: 
         print("IndexError: can't find current_time in data")
-        print(current_time, np.where(data[:,0] == current_time)[0], data[-1,0])
+        print(current_time, data[np.isclose(data[:,0], current_time, atol=1e-6), 0], data[-1,0])
         current_idx = -1
     current_pos = data[current_idx,1:4]
 
@@ -334,7 +335,7 @@ def update(inp, data, fig, ax, limits, ev_ax, im_ax, imgs, imu_axs, accs, orient
     rot = update_rotation(data, current_idx) 
     rot = rot*rot_offset  # now x axis is flight direction, y-axis is left, z-axis is up
     # show_orientation(rot_offset, show=False)
-    # show_orientation(rot*rot_offset)
+    # show_orientation(rot)
     # assert False
     true_diff = rot*true_prev_rot.inv()
     true_prev_rot = rot  # store for next iteration
@@ -531,6 +532,7 @@ if __name__ == '__main__':
 
             print_progress(t/end)
             plt.pause(0.001)
+
             # plt.pause(dt)
             #t += dt
 
@@ -548,9 +550,6 @@ if __name__ == '__main__':
             dt = inp['gt_dt'].item()
 
             plt.pause(dt)
-
-            # plt.show()
-            # assert False
 
             if h5data.new_seq: break
 

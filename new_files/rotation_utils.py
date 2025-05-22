@@ -266,10 +266,16 @@ class ModifiedH5Loader(H5Loader):
             idx1 = -1
             idx2 = None
         else: 
-            idxs = np.where((t1 < (file["ground_truth/timestamp"] - file.attrs["t0"])) 
-                    & ((file["ground_truth/timestamp"] - file.attrs["t0"]) < t2))[0]
-            idx1 = idxs[0] - 1 if idxs[0]!= 0 else idxs[0]
-            idx2 = idxs[-1] + 1 if idxs[-1] != len(file["ground_truth/timestamp"])-1 else idxs[-1]
+            try: 
+                idxs = np.where((t1 < (file["ground_truth/timestamp"] - file.attrs["t0"])) 
+                        & ((file["ground_truth/timestamp"] - file.attrs["t0"]) < t2))[0]
+                idx1 = idxs[0] - 1 if idxs[0]!= 0 else idxs[0]
+                idx2 = idxs[-1] + 1 if idxs[-1] != len(file["ground_truth/timestamp"])-1 else idxs[-1]
+            except IndexError:
+                print("Check 1a", file["ground_truth/timestamp"][0], file["ground_truth/timestamp"][1], file["ground_truth/timestamp"][0] - file.attrs["t0"], file["ground_truth/timestamp"][1] - file.attrs["t0"])
+                print("Check 1b", t1, t2, idxs)
+                print("Check 1c", file)
+                raise IndexError
         # TODO: implement error handling: what if torch.where is empty? 
         return idx1, idx2
 
@@ -291,17 +297,18 @@ class ModifiedH5Loader(H5Loader):
 
         t = np.transpose(np.vstack((tx, ty, tz)))
         t1 = t[0]
-        if self.rotation_mode == "absolute":
+        self.translation_mode = "difference"  # TODO: add translation_mode property
+        if self.translation_mode == "absolute":
             t = t[-1]
             #t = np.mean(t, axis=0)  
-        elif self.rotation_mode == "difference":
+        elif self.translation_mode == "difference":
             t = t[-1] - t[0]
-        elif self.rotation_mode == "zero-offset":
+        elif self.translation_mode == "zero-offset":
             t = np.mean(t, axis=0) - file.attrs["gt0"][1:4]  # TODO maybe this should also be t[-1]?
         t = torch.flatten(torch.tensor(t, dtype=torch.float32))
         t1 = torch.flatten(torch.tensor(t1, dtype=torch.float32))
         
-
+        # TODO: implement zero-offset properly
         r = np.transpose(np.vstack((qx, qy, qz, qw)))
         r1 = Rotation.from_quat(r[0])
         if self.rotation_mode == "absolute":
@@ -309,6 +316,8 @@ class ModifiedH5Loader(H5Loader):
             #r = Rotation.from_quat(np.mean(r, axis=0)) 
         elif self.rotation_mode == "difference":
             r = Rotation.from_quat(r[-1]) * Rotation.from_quat(r[0]).inv()
+        elif self.rotation_mode == "local_diff": 
+            r = Rotation.from_quat(r[0]).inv() * Rotation.from_quat(r[-1])
         elif self.rotation_mode == "zero-offset":
             r = Rotation.from_quat(np.mean(r, axis=0)) * Rotation.from_quat(file.attrs["gt0"][4:]).inv()  # TODO maybe this should also be r[-1]?
         

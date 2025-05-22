@@ -1,11 +1,12 @@
-# Adapted to work on both Windows & Linux
+# Adapted to work on both Windows & Linux 
 # And to include functions 
 #  - to replace run_id with run_name (for easier directory navigation) 
 #  - to log some desired metrics to a csv file 
+# Changes are marked by '# changed' or '# new function'
 
 import os
-from functools import partial  # change
-import csv  # change
+from functools import partial  # changed
+import csv  # changed
 
 import mlflow
 import pandas as pd
@@ -16,26 +17,26 @@ def load_model(prev_runid, model, device):
     try:
         run = mlflow.get_run(prev_runid)
     except:
-        print("Failed to get run ", prev_runid)  # change
+        print("Failed to get run ", prev_runid)  # changed
         return model
 
-    artifact_uri = os.path.join(run.info.artifact_uri, 'model', 'data', 'model.pth')  # change
-    if os.name == 'nt':  # check if we're running on Windows  # change
-        artifact_uri = artifact_uri.replace("/", "\\")  # change
-    model_dir = os.path.join(os.getcwd(), artifact_uri)  # change
+    artifact_uri = os.path.join(run.info.artifact_uri, 'model', 'data', 'model.pth')  # changed
+    if os.name == 'nt':  # check if we're running on Windows  # changed
+        artifact_uri = artifact_uri.replace("/", "\\")  # changed
+    model_dir = os.path.join(os.getcwd(), artifact_uri)  # changed
     #model_dir = os.path.join(os.getcwd(), artifact_uri[artifact_uri.find('mlruns'):])
 
     if model_dir[:7] == "file://":
         model_dir = model_dir[7:]
 
-    print("Loading model from dir: ", model_dir)  # change
+    print("Loading model from dir: ", model_dir)  # changed
 
     if os.path.isfile(model_dir):
         model_loaded = torch.load(model_dir, map_location=device) 
-        if model:  # change
+        if model:  # changed
             model.load_state_dict(model_loaded.state_dict()) 
-        else:  # change
-            model = model_loaded  # change
+        else:  # changed
+            model = model_loaded  # changed
         print("Model restored from " + prev_runid + "\n")
     else:
         print("No model found at " + prev_runid + "\n")
@@ -44,7 +45,7 @@ def load_model(prev_runid, model, device):
 
 
 def create_model_dir(path_results, runid):
-    path_results = os.path.join(path_results, runid)  # change
+    path_results = os.path.join(path_results, runid)  # changed
     if not os.path.exists(path_results):
         os.makedirs(path_results)
     print("Results stored at " + path_results + "\n")
@@ -68,7 +69,7 @@ def rename_run(path, run_id, run_name):  # new function
 
 def save_model(model):
     mlflow.pytorch.log_model(model, "model")
-    print("\nsaved model \n")  # change
+    print("\nsaved model \n")  # changed
 
 
 def save_csv(data, fname):
