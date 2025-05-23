@@ -94,7 +94,7 @@ def save_diff(fname="git_diff.txt"):
     os.system(f"git diff > {path}")
 
 
-def log_to_overview(params, replace_last=False, path='results/mlruns'):  # new function
+def log_to_overview(params, replace=False, path='results/mlruns'):  # new function
     with open(os.path.join(path, 'overview_runs.csv'), 'r') as file:
         reader = csv.reader(file, delimiter=';')
         rows = list(reader)
@@ -103,8 +103,9 @@ def log_to_overview(params, replace_last=False, path='results/mlruns'):  # new f
     row = []
     for param in heading:
         row += [params[param] if param in params.keys() else None]
-    if replace_last:
-        rows = rows[:-1] + [row]
+    if replace and 'run_name' in params.keys():
+        idx = list(i for i in range(len(rows)) if rows[i][2] == params['run_name'])[-1]
+        rows[idx] = row
     else: 
         rows = rows + [row]
         

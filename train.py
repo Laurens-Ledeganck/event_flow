@@ -20,8 +20,6 @@
 
 import argparse
 import datetime
-import tkinter
-import tkinter.simpledialog
 
 import mlflow
 import wandb
@@ -207,7 +205,7 @@ def train(args, config_parser, alert=None):
                             'notes': config['logging']['note'],
                             'architecture': str(model).replace('\n', ' '),
                             'params': config
-                        }, path=args.path_mlflow, replace_last=True)
+                        }, path=args.path_mlflow, replace=True)
 
                 data.epoch += 1
                 data.samples = 0
@@ -312,6 +310,9 @@ def train(args, config_parser, alert=None):
 
 
 if __name__ == "__main__":
+    remote = True
+    note = "n/a"
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--config",
@@ -334,10 +335,13 @@ if __name__ == "__main__":
         help="Setting to 'False' or 'false' bypasses W&B operations"
     )
 
-    # use a pop-up window to ask for additional note
-    root = tkinter.Tk()
-    root.withdraw() 
-    note = tkinter.simpledialog.askstring("Input", "Note for logging: ")
+    if not remote: 
+        # use a pop-up window to ask for additional note
+        import tkinter
+        import tkinter.simpledialog
+        root = tkinter.Tk()
+        root.withdraw() 
+        note = tkinter.simpledialog.askstring("Input", "Note for logging: ")
     parser.add_argument(
         "--note", 
         default=note,

@@ -276,7 +276,8 @@ class ModifiedH5Loader(H5Loader):
                 print("Check 1b", t1, t2, idxs)
                 print("Check 1c", file)
                 raise IndexError
-        # TODO: implement error handling: what if torch.where is empty? 
+                # TODO: implement error handling: what if torch.where is empty? 
+                # TODO: can I manually increase the time window?  
         return idx1, idx2
 
     def get_time_translation_rotation(self, file, t1, t2):

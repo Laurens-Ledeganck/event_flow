@@ -195,7 +195,7 @@ def train(args, config_parser, alert=None):
                             'notes': config['logging']['note'],
                             'architecture': str(model).replace('\n', ' '),
                             'params': config
-                        }, path=args.path_mlflow, replace_last=True)
+                        }, path=args.path_mlflow, replace=True)
 
                 data.epoch += 1
                 data.samples = 0
