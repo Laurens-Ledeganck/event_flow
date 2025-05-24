@@ -266,18 +266,15 @@ class ModifiedH5Loader(H5Loader):
             idx1 = -1
             idx2 = None
         else: 
-            try: 
-                idxs = np.where((t1 < (file["ground_truth/timestamp"] - file.attrs["t0"])) 
-                        & ((file["ground_truth/timestamp"] - file.attrs["t0"]) < t2))[0]
-                idx1 = idxs[0] - 1 if idxs[0]!= 0 else idxs[0]
-                idx2 = idxs[-1] + 1 if idxs[-1] != len(file["ground_truth/timestamp"])-1 else idxs[-1]
-            except IndexError:
-                print("Check 1a", file["ground_truth/timestamp"][0], file["ground_truth/timestamp"][1], file["ground_truth/timestamp"][0] - file.attrs["t0"], file["ground_truth/timestamp"][1] - file.attrs["t0"])
-                print("Check 1b", t1, t2, idxs)
-                print("Check 1c", file)
-                raise IndexError
-                # TODO: implement error handling: what if torch.where is empty? 
-                # TODO: can I manually increase the time window?  
+            idx1 = np.where(t1 < (file["ground_truth/timestamp"] - file.attrs["t0"]))[0][0]
+            
+            idx2 = np.where((file["ground_truth/timestamp"] - file.attrs["t0"]) < t2)[0][-1]
+
+            idx1 = idx1 - 1 if idx1 != 0 else idx1
+            idx2 = idx2 + 1 if idx2 != len(file["ground_truth/timestamp"])-1 else idx2
+
+            if idx2 - idx1 <= 1: print(f"\nNo ground truth data in file {file} between {t1} and {t2} (closest gt indices are {idx1} and {idx2}). If this occurs often, consider increasing the event window.")
+
         return idx1, idx2
 
     def get_time_translation_rotation(self, file, t1, t2):

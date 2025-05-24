@@ -70,10 +70,6 @@ if __name__ == "__main__":
     base_config_file = 'configs/train_flow.yml'
     base_config = YAMLParser(base_config_file).config
     preset_configs = load_settings('preset.csv') 
-    print(preset_configs)
-    print()
-    print(len(preset_configs))
-    print()
 
     # start loop
     logs = "Good news! \nYour ML runs were completed successfully. Find the logs below:"
@@ -99,11 +95,8 @@ if __name__ == "__main__":
             config_parser = YAMLParser(args.config) 
 
             # Run training loop:
-            run, best_loss = train(args, config_parser, alert=["Runs completed!", logs] if stop else None) 
+            run_log = train(args, config_parser, alert=["Runs completed!", logs] if stop else None) 
             print(f"Run {run_nr+1} done.")
-
-            # End training, collect logs:
-            run_log = run.name+'('+str(args.note)+')'+': '+str(best_loss) 
 
 
         except Exception as e:

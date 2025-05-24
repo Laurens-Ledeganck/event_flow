@@ -298,15 +298,17 @@ def train(args, config_parser, alert=None):
         if end_train:
             break
 
+
+    run_log = run.name+' ('+str(args.note)+')'+': '+str(best_loss)+'; ' 
     mlflow.end_run()
     if alert:
         run.alert(
             title=alert[0],
-            text=alert[1],
+            text=alert[1]+'\n'+run_log,
             level="INFO"
         )
     run.finish()  # for wandb
-    return run, best_loss
+    return run_log
 
 
 if __name__ == "__main__":

@@ -69,10 +69,10 @@ def rename_run(path, run_id, run_name):  # new function
 
 def save_model(model):
     mlflow.pytorch.log_model(model, "model")
-    print("\nsaved model \n")  # changed
+    print("\nsaved model \n")  # changed, can be added to keep an overview of the loss per epoch
 
 
-def save_csv(data, fname):
+def save_csv(data, fname):  # new function
     # create file if not there
     path = mlflow.get_artifact_uri(artifact_path=fname)
     if path[:7] == "file://":  # to_csv() doesn't work with 'file://'
