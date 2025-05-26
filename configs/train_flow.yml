@@ -1,9 +1,9 @@
 experiment: Default
 
 data:
-    path: datasets/data/UZH-FPV/flow/
+    path: datasets/data/flow/ # datasets/data/UZH-FPV/flow/
     mode: events # events/time
-    window: 1000 # events/time
+    window: 1000. # events/time
     window_loss: 10000 # events
 
 model:

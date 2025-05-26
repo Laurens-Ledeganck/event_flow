@@ -2,7 +2,7 @@ logic,model.name,spiking_neuron.use_spiking,model.activations,loader.batch_size,
 ,,,,,,,
 ,,,,,,,
 ,,,,,,,
-START,FireNet,FALSE,"[relu, Null]",8,events,1000,Retraining FireNet
+START,FireNet,FALSE,"relu,Null",8,events,1000,Retraining FireNet
 ,,,,1,time,0.002,FireNet but time difference of 0.002
 ,EVFlowNet,,,,,0.001,EVFlowNet but time difference of 0.001
 ,,,,,,0.002,EVFlowNet but time difference of 0.002
@@ -12,7 +12,7 @@ START,FireNet,FALSE,"[relu, Null]",8,events,1000,Retraining FireNet
 ,FireFlowNet,,,,,,Hybrid of the previous two?
 ,E2VID,,,,,,More exotic architecture
 ,RevEVFlowNet,,,,,,More exotic architecture
-,LIFEVFlowNet,TRUE,"[arctanspike, arctanspike]",,,,Spiking version of EVFLowNet
+,LIFEVFlowNet,TRUE,"arctanspike, arctanspike",,,,Spiking version of EVFLowNet
 ,LIFEVFlowNet,,,,,,Spiking with presynaptic activity
 ,LIFEVFlowNet,,,,,,Spiking with pre- and postsynaptic activity
 STOP,LIFFireNet,,,,,,Spiking version of FireNet
