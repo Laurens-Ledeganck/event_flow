@@ -1,5 +1,7 @@
 """
-Work in progress
+Wrapper for train.py, can be used to schedule multiple runs with slightly different parameters. 
+Configure a base config in configs.base_config.yml with all your parameters, then specify in preset.csv the values of the parameters for each run. 
+An empty value means 
 """
 #TODO: add file description
 
@@ -15,7 +17,7 @@ from train import train
 
 
 def load_settings(csv_path):
-    preset_configs = pd.read_csv(csv_path, sep='\t')
+    preset_configs = pd.read_csv(csv_path, sep=',')
 
     start_idx = preset_configs.index[preset_configs['logic'].str.upper()=='START'].tolist()[0]
     stop_idx = preset_configs.index[preset_configs['logic'].str.upper()=='STOP'].tolist()[0]
@@ -39,8 +41,7 @@ def config_processing(original, new):
             if isinstance(original, list):
                 new = str(new).strip(' ').split(',')
                 for i in range(len(new)):
-                    subtype = type(original[-1]) if i >= len(original) else type(original[i])
-                    new[i] = subtype(new[i])
+                    new[i] = config_processing(original[i] if i < len(original) else original[-1])
         new = data_type(new)
 
     return new
@@ -67,8 +68,9 @@ def modify_config(settings, base_config: dict):
 
 if __name__ == "__main__":
     # load preset parameters
-    base_config_file = 'configs/train_flow.yml'
+    base_config_file = 'configs/train_flow.yml' #'configs/base_config.yml'
     base_config = YAMLParser(base_config_file).config
+    prev_config = base_config
     preset_configs = load_settings('preset.csv') 
 
     # start loop
@@ -79,7 +81,8 @@ if __name__ == "__main__":
 
         try:
             # Loading config:
-            new_config = modify_config(settings, base_config)
+            new_config = modify_config(settings, prev_config)
+            prev_config = new_config
             with open('configs/temp_config.yml', 'w') as file:
                 yaml.dump(new_config, file)
                 

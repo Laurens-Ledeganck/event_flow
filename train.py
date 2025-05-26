@@ -108,7 +108,6 @@ def train(args, config_parser, alert=None):
 
     # initialize settings
     device = config_parser.device
-    config['model']['device'] = device
     kwargs = config_parser.loader_kwargs
 
     # visualization tool
@@ -126,6 +125,7 @@ def train(args, config_parser, alert=None):
         except AttributeError:
             raise ValueError("prev_runid not found")
 
+        model_args["device"] = device
         model_args["flow_model"] = prev_model
         model_args["batch_size"] = config["loader"]["batch_size"]
         model_args["resolution"] = config["loader"]["resolution"]

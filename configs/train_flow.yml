@@ -1,20 +1,20 @@
 experiment: Default
 
 data:
-    path: datasets/data/rotation/
+    path: datasets/data/UZH-FPV/flow/
     mode: events # events/time
     window: 1000 # events/time
     window_loss: 10000 # events
 
 model:
-    name: FullRotationModel
-    model_type: conv
-    use_existing: true
-    prev_runid: nervous-ram-566
-    transfer_layer: pred
-    include_init: True
+    # name: FullRotationModel
+    # model_type: conv # new
+    # use_existing: true # new
+    # prev_runid: nervous-ram-566 # new
+    # transfer_layer: pred # new
+    # include_init: True # new
 
-    #name: FireNet # EVFlowNet/*FireFlowNet/*FireNet/E2VID/RecEVFlowNet
+    name: FireNet # EVFlowNet/*FireFlowNet/*FireNet/E2VID/RecEVFlowNet
     
     encoding: cnt # voxel/cnt
     round_encoding: False # for voxel encoding
@@ -25,7 +25,13 @@ model:
     activations: [relu, Null] # activations for ff and rec neurons
     mask_output: True
 
-spiking_neuron: Null
+spiking_neuron: 
+    use_spiking: False # new
+    leak: [-4.0, 0.1]
+    thresh: [0.8, 0.1]
+    learn_leak: True
+    learn_thresh: True
+    hard_reset: True
     
 loss:
     flow_regul_weight: 0.001
@@ -37,13 +43,13 @@ optimizer:
     lr: 0.0002
 
 loader:
-    rotation_mode: difference  # absolute / difference / zero-offset  # new
-    rotation_type: euler_deg  # quat / rotvec / matrix / euler / euler_deg  # new
+    # rotation_mode: difference  # absolute / difference / zero-offset  # new
+    # rotation_type: euler_deg  # quat / rotvec / matrix / euler / euler_deg  # new
     n_epochs: 100
-    batch_size: 7
+    batch_size: 1
     resolution: [128, 128] # H x W
     augment: ["Horizontal", "Vertical", "Polarity"]
-    augment_prob: [0, 0, 0.]  # [0.5, 0.1, 0.]
+    augment_prob: [0.5, 0.5, 0.5]  # or [0., 0., 0.] or [0.5, 0.1, 0.]
     gpu: 0
 
 vis:

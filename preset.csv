@@ -1,7 +1,18 @@
-logic	loader.n_epochs	optimizer.lr	note
-			
-			
-			
-START	5	0.0002	this
-	5	0.002	fucking
-STOP	5		works
+logic,model.name,spiking_neuron.use_spiking,model.activations,loader.batch_size,data.mode,data.window,note
+,,,,,,,
+,,,,,,,
+,,,,,,,
+START,FireNet,FALSE,"[relu, Null]",8,events,1000,Retraining FireNet
+,,,,1,time,0.002,FireNet but time difference of 0.002
+,EVFlowNet,,,,,0.001,EVFlowNet but time difference of 0.001
+,,,,,,0.002,EVFlowNet but time difference of 0.002
+,,,,,,0.005,EVFlowNet but time difference of 0.005
+,,,,,,0.01,EVFlowNet but time difference of 0.01
+,,,,8,events,1000,Nice encoder-decoder
+,FireFlowNet,,,,,,Hybrid of the previous two?
+,E2VID,,,,,,More exotic architecture
+,RevEVFlowNet,,,,,,More exotic architecture
+,LIFEVFlowNet,TRUE,"[arctanspike, arctanspike]",,,,Spiking version of EVFLowNet
+,LIFEVFlowNet,,,,,,Spiking with presynaptic activity
+,LIFEVFlowNet,,,,,,Spiking with pre- and postsynaptic activity
+STOP,LIFFireNet,,,,,,Spiking version of FireNet

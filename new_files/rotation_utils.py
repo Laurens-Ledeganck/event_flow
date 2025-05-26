@@ -84,7 +84,7 @@ class ConvRotationModel(BaseModel):
 class FullRotationModel(BaseModel):
     # the following was adapted from the FireNet code
 
-    def __init__(self, unet_kwargs):
+    def __init__(self, device, unet_kwargs):
         super().__init__()
 
         # self.num_bins = unet_kwargs["num_bins"]
@@ -97,7 +97,7 @@ class FullRotationModel(BaseModel):
         # if type(unet_kwargs["spiking_neuron"]) is dict:
         #     for kwargs in self.kwargs:
         #         kwargs.update(unet_kwargs["spiking_neuron"])
-        self.device = unet_kwargs["device"]
+        self.device = device
 
         self.flow_model = unet_kwargs["flow_model"]
         self.flow_model.eval()
