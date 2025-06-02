@@ -1,0 +1,15 @@
+artifact_uri: results/mlruns/2025-may/26-5-melodic-vole/artifacts
+end_time: 1748350179350
+entry_point_name: ''
+experiment_id: 2025-may
+lifecycle_stage: active
+run_id: 26-5-melodic-vole
+run_name: melodic-vole-34
+run_uuid: 26-5-melodic-vole
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1748294206460
+status: 3
+tags: []
+user_id: laurens

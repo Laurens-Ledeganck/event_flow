@@ -144,8 +144,8 @@ class H5Loader(BaseDataLoader):
         event_idx0 = None
         event_idx1 = None
         if self.config["data"]["mode"] == "events":
-            event_idx0 = self.batch_row[batch]
-            event_idx1 = self.batch_row[batch] + window
+            event_idx0 = int(self.batch_row[batch])
+            event_idx1 = int(self.batch_row[batch] + window)
         elif self.config["data"]["mode"] == "time":
             event_idx0 = self.find_ts_index(
                 self.open_files[batch], self.batch_row[batch] + self.open_files[batch].attrs["t0"]

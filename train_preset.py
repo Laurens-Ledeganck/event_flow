@@ -79,32 +79,32 @@ if __name__ == "__main__":
         settings = preset_configs.iloc[run_nr]
         stop = True if str(settings["logic"]).upper() == "STOP" else False
 
-        #try:
-        # Loading config:
-        new_config = modify_config(settings, prev_config)
-        prev_config = new_config
-        with open('configs/temp_config.yml', 'w') as file:
-            yaml.dump(new_config, file)
-            
-        # Initialize training:
-        print(f"\nStarting run {run_nr+1} out of {len(preset_configs)}\n")
-        args = SimpleNamespace(
-            config='configs/temp_config.yml', 
-            path_mlflow='results/mlruns', 
-            prev_runid='',  # TODO, but optional
-            use_wandb='True',
-            note= None if not hasattr(settings, 'note') else settings.note
-        )
-        config_parser = YAMLParser(args.config) 
+        try:
+            # Loading config:
+            new_config = modify_config(settings, prev_config)
+            prev_config = new_config
+            with open('configs/temp_config.yml', 'w') as file:
+                yaml.dump(new_config, file)
+                
+            # Initialize training:
+            print(f"\nStarting run {run_nr+1} out of {len(preset_configs)}\n")
+            args = SimpleNamespace(
+                config='configs/temp_config.yml', 
+                path_mlflow='results/mlruns', 
+                prev_runid='',  # TODO, but optional
+                use_wandb='True',
+                note= None if not hasattr(settings, 'note') else settings.note
+            )
+            config_parser = YAMLParser(args.config) 
 
-        # Run training loop:
-        run_log = train(args, config_parser, alert=["Runs completed!", logs] if stop else None) 
-        print(f"Run {run_nr+1} done.")
+            # Run training loop:
+            run_log = train(args, config_parser, alert=["Runs completed!", logs] if stop else None) 
+            print(f"Run {run_nr+1} done.")
 
 
-        #except Exception as e:
-        #    run_log = f"Run failed due to {e}"
-        #    mlflow.end_run()
+        except Exception as e:
+           run_log = f"Run failed due to {e}"
+           mlflow.end_run()
 
         logs += "\n"    
         logs += run_log

@@ -2,8 +2,8 @@ experiment: Default
 
 data:
     path: datasets/data/flow/ # datasets/data/UZH-FPV/flow/
-    mode: events # events/time
-    window: 1000. # events/time
+    mode: time # events/time
+    window: 0.001 # events/time
     window_loss: 10000 # events
 
 model:
@@ -14,7 +14,7 @@ model:
     # transfer_layer: pred # new
     # include_init: True # new
 
-    name: FireNet # EVFlowNet/*FireFlowNet/*FireNet/E2VID/RecEVFlowNet
+    name: EVFlowNet # EVFlowNet/*FireFlowNet/*FireNet/E2VID/RecEVFlowNet
     
     encoding: cnt # voxel/cnt
     round_encoding: False # for voxel encoding

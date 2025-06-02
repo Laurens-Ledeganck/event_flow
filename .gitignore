@@ -2,6 +2,7 @@ testing*
 results/mlruns/*/*/artifacts
 results/mlruns/42
 results/demo_videos
+results/*.log
 
 __pycache__/
 datasets/data

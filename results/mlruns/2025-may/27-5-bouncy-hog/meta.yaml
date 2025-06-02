@@ -1,0 +1,15 @@
+artifact_uri: results/mlruns/2025-may/27-5-bouncy-hog/artifacts
+end_time: 1748414293087
+entry_point_name: ''
+experiment_id: 2025-may
+lifecycle_stage: active
+run_id: 27-5-bouncy-hog
+run_name: bouncy-hog-625
+run_uuid: 27-5-bouncy-hog
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1748374469179
+status: 3
+tags: []
+user_id: laurens

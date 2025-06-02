@@ -1,0 +1,1 @@
+{'activations': ['relu', None], 'base_num_channels': 32, 'encoding': 'cnt', 'kernel_size': 3, 'mask_output': True, 'name': 'FireFlowNet', 'norm_input': False, 'num_bins': 2, 'round_encoding': False}

@@ -1,0 +1,15 @@
+artifact_uri: results/mlruns/2025-may/27-5-brawny-skink/artifacts
+end_time: 1748374468205
+entry_point_name: ''
+experiment_id: 2025-may
+lifecycle_stage: active
+run_id: 27-5-brawny-skink
+run_name: brawny-skink-819
+run_uuid: 27-5-brawny-skink
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1748350180356
+status: 3
+tags: []
+user_id: laurens
