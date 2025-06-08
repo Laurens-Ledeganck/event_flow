@@ -1,6 +1,11 @@
 """MLFlow + W&B version"""
 
 # TODO: 
+# - customizable loss
+# - use augmentation correctly for rotation
+# - customizable spiking or hybrid or ANN for rotation network
+# - ...?
+#
 # get code set up
 # maybe reorganize code?
 # TOMORROW
@@ -294,6 +299,10 @@ def train(args, config_parser, alert=None):
                     ),
                     end="\r",
                 )
+        
+            # TODO: this might help with time-based windows
+            #torch.cuda.empty_cache()
+            # perhaps with a conditional check for memory used?
 
         if end_train:
             break

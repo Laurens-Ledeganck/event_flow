@@ -122,7 +122,7 @@ class YAMLParser:
 
         if "spiking_neuron" in config.keys():
 
-            if config["spiking_neuron"]["use_spiking"]:  # changed
+            if (config["spiking_neuron"] is not None and config["spiking_neuron"]["use_spiking"]):  # changed
                 config["model"]["spiking_neuron"] = config["spiking_neuron"]
             else:  # changed
                 config["model"]["spiking_neuron"] = None  # changed

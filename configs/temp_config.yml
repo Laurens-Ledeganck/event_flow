@@ -1,7 +1,7 @@
 data:
   mode: events
-  path: datasets/data/UZH-FPV/rotation_train/  # datasets/data/UZH-FPV/flow  
-  window: 1000.
+  path: datasets/data/UZH-FPV/rotation_train/
+  window: 1000.0
   window_loss: 10000
 experiment: Default
 hot_filter:
@@ -44,11 +44,11 @@ model:
   name: FullRotationModel
   norm_input: false
   num_bins: 2
-  prev_runid: FireNet  # nervous-ram-566 # FireNet or E2VID (27-5-bouncy-hog) or EVFlowNet or variations
+  prev_runid: FireNet
   round_encoding: false
-  transfer_layer: pred  # for FireNet: head, R1b or pred; for EVFlowNet: multires_unetrec.encoders.0, multires_unetrec.resblocks.0, multires_unetrec.resblocks.1 or multires_unetrec.preds.3; for E2VID: unetrecurrent.head, unetrecurrent.resblocks.0, unetrecurrent.resblocks.1  or unetrecurrent.pred
+  transfer_layer: header
   use_existing: true
-  use_layer_input: false  # set to True to use the input of the layer, useful for bypassing flow network
+  use_layer_input: true
 optimizer:
   lr: 0.0002
   name: Adam

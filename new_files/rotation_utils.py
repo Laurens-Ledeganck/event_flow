@@ -5,6 +5,7 @@ Based on Jesse's file
 import torch
 import numpy as np
 from scipy.spatial.transform import Rotation
+from functools import partial
 
 from event_flow_pipeline.models.base import BaseModel
 from event_flow_pipeline.models.model_util import copy_states, CropParameters
@@ -84,7 +85,7 @@ class ConvRotationModel(BaseModel):
 class FullRotationModel(BaseModel):
     # the following was adapted from the FireNet code
 
-    def __init__(self, device, unet_kwargs):
+    def __init__(self, unet_kwargs):
         super().__init__()
 
         # self.num_bins = unet_kwargs["num_bins"]
@@ -97,7 +98,7 @@ class FullRotationModel(BaseModel):
         # if type(unet_kwargs["spiking_neuron"]) is dict:
         #     for kwargs in self.kwargs:
         #         kwargs.update(unet_kwargs["spiking_neuron"])
-        self.device = device
+        self.device = unet_kwargs["device"]
 
         self.flow_model = unet_kwargs["flow_model"]
         self.flow_model.eval()
@@ -108,6 +109,8 @@ class FullRotationModel(BaseModel):
         self.n_transfers = None
         self.current_transfer = None
         self.transfer_layer = unet_kwargs["transfer_layer"]
+        self.use_input = unet_kwargs["use_layer_input"]
+        self.encoding = unet_kwargs["encoding"]
         self.get_n_transfers()  # will update self.transfer_size and self.n_transfers
 
         self.include_init = unet_kwargs["include_init"]
@@ -123,16 +126,32 @@ class FullRotationModel(BaseModel):
             self.model_type = 'linear'
             self.rotation_model = SimpleRotationModel(n_inputs=self.n_transfers, n_outputs=self.n_outputs, n_init=(self.include_init*self.get_n_rotation_nodes()))
     
-    def transfer_hook(self, module, input, output):  # should I use output[0] or not?
+    def transfer_hook(self, module, inp, output):  # should I use output[0] or not?
+        if self.use_input: 
+            values = inp
+        else: 
+            values = output
+        
+        if isinstance(values, tuple):
+            values = values[0] # TODO investigate where exactly this occurs
+        
         if self.transfer_size is None: 
-            self.transfer_size = output.shape
+            self.transfer_size = values.shape
         if self.n_transfers is None: 
-            self.n_transfers = len(torch.flatten(output[0]))
-        self.current_transfer = output
+            self.n_transfers = len(torch.flatten(values[0])) 
+        self.current_transfer = values
+    
+    def register_hook(self, module, transfer_layer:str):
+        print(module, transfer_layer)
+        if '.' in transfer_layer:
+            idx = transfer_layer.index('.')
+            return self.register_hook(getattr(module, transfer_layer[:idx]), transfer_layer[idx+1:])
+        else: 
+            return getattr(module, transfer_layer).register_forward_hook(self.transfer_hook)
     
     def get_n_transfers(self):
         # first, set the hook on the transfer layer
-        hook = getattr(self.flow_model, self.transfer_layer).register_forward_hook(self.transfer_hook)
+        hook = self.register_hook(self.flow_model, self.transfer_layer)
 
         # now pass a dummy input (n_transfers will be registered)
         dummy_voxel = torch.randn(self.input_size, dtype=torch.float32).to(self.device)
@@ -191,16 +210,22 @@ class FullRotationModel(BaseModel):
         if init_rot is not None: init_rot.to(self.device)
 
         # forward pass
-        hook = getattr(self.flow_model, self.transfer_layer).register_forward_hook(self.transfer_hook)
+
+        # get the hook
+        hook = self.register_hook(self.flow_model, self.transfer_layer)
         
+        # pass the input through the flow model
+        # TODO: cut this off at the transfer layer
         with torch.no_grad():
             flow = self.flow_model(event_voxel, event_cnt, log=log)['flow'][0]
         
+        # retrieve the intermediate values to transfer
         if self.model_type == 'linear':
             transfer = torch.reshape(self.current_transfer, (self.current_transfer.shape[0], self.n_transfers))
         else: 
             transfer = self.current_transfer
 
+        # get the output of the rotation model
         if self.include_init: 
             if init_rot is not None: 
                 r = self.rotation_model(transfer, init_rot)
@@ -209,12 +234,15 @@ class FullRotationModel(BaseModel):
         else: 
             r = self.rotation_model(transfer)
         
-        hook.remove()
+
+        if not self.use_input:
+            hook.remove()
 
         # TODO: potentially log activity
         activity = None
 
         return {"flow": [flow], "activity": activity, "rotation": r}
+
 
 
 class RotationLoss(BaseValidationLoss):

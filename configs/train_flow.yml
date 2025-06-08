@@ -7,14 +7,7 @@ data:
     window_loss: 10000 # events
 
 model:
-    # name: FullRotationModel
-    # model_type: conv # new
-    # use_existing: true # new
-    # prev_runid: nervous-ram-566 # new
-    # transfer_layer: pred # new
-    # include_init: True # new
-
-    name: EVFlowNet # EVFlowNet/*FireFlowNet/*FireNet/E2VID/RecEVFlowNet
+    name: EVFlowNet # EVFlowNet/*FireFlowNet/*FireNet/E2VID/RecEVFlowNet, or FullRotationModel
     
     encoding: cnt # voxel/cnt
     round_encoding: False # for voxel encoding
@@ -24,6 +17,14 @@ model:
     kernel_size: 3
     activations: [relu, Null] # activations for ff and rec neurons
     mask_output: True
+
+    # new model settings: 
+    # model_type: conv 
+    # use_existing: true 
+    # prev_runid: FireNet  # nervous-ram-566 
+    # transfer_layer: pred 
+    # use_layer_input: true  # set to True to use the input of the layer, useful for bypassing flow network  
+    # include_init: True 
 
 spiking_neuron: 
     use_spiking: False # new

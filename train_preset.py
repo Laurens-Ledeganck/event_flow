@@ -1,9 +1,8 @@
 """
 Wrapper for train.py, can be used to schedule multiple runs with slightly different parameters. 
 Configure a base config in configs.base_config.yml with all your parameters, then specify in preset.csv the values of the parameters for each run. 
-An empty value means 
+An empty value means the previous one will be used.
 """
-#TODO: add file description
 
 from types import SimpleNamespace
 import pandas as pd
@@ -68,7 +67,7 @@ def modify_config(settings, base_config: dict):
 
 if __name__ == "__main__":
     # load preset parameters
-    base_config_file = 'configs/train_flow.yml' #'configs/base_config.yml'
+    base_config_file = 'configs/train_rotation.yml'  # 'configs/train_flow.yml' 
     base_config = YAMLParser(base_config_file).config
     prev_config = base_config
     preset_configs = load_settings('preset.csv') 
@@ -93,7 +92,7 @@ if __name__ == "__main__":
                 path_mlflow='results/mlruns', 
                 prev_runid='',  # TODO, but optional
                 use_wandb='True',
-                note= None if not hasattr(settings, 'note') else settings.note
+                note= 'n/a' if not hasattr(settings, 'note') else str(settings.note)
             )
             config_parser = YAMLParser(args.config) 
 
