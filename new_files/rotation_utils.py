@@ -2,16 +2,160 @@
 Based on Jesse's file
 """
 # imports
+import math
 import torch
 import numpy as np
 from scipy.spatial.transform import Rotation
 from functools import partial
 
+from event_flow_pipeline.models.model_util import copy_states
+import event_flow_pipeline.models.spiking_util as spiking
+from event_flow_pipeline.models.submodules import ConvGRU, ConvLayer, ConvLayer_, ConvLeaky, ConvLeakyRecurrent, ConvRecurrent
+from event_flow_pipeline.models.spiking_submodules import ConvALIF, ConvALIFRecurrent, ConvLIF, ConvLIFRecurrent, ConvPLIF, ConvPLIFRecurrent, ConvXLIF, ConvXLIFRecurrent
 from event_flow_pipeline.models.base import BaseModel
-from event_flow_pipeline.models.model_util import copy_states, CropParameters
 from event_flow_pipeline.loss.flow import BaseValidationLoss
 from event_flow_pipeline.dataloader.h5 import H5Loader, Frames, ProgressBar, FlowMaps
 import h5py
+
+
+class Linear(torch.nn.Module):
+    """Linear layer with activation, similar inputs to LinearLIF."""
+    def __init__(
+            self,
+            in_features: int,
+            out_features: int,
+            bias: bool = True,
+            activation = "ReLU",
+            device = None,
+            dtype = None, 
+            norm = None, 
+            BN_momentum = 0.1, 
+            w_scale = None
+        ):
+        super().__init__()
+        self.layer = torch.nn.Linear(in_features, out_features, bias, device, dtype)
+        if activation is None:
+            self.activation = None
+        else:
+            self.activation = eval('torch.nn.'+activation+'()')
+
+        if w_scale is not None:
+            torch.nn.init.uniform_(self.layer.weight, -w_scale, w_scale)
+            torch.nn.init.zeros_(self.layer.bias)
+
+        self.norm = norm
+        if norm == "BN":
+            self.norm_layer = torch.nn.BatchNorm2d(out_features, momentum=BN_momentum)
+        elif norm == "IN":
+            self.norm_layer = torch.nn.InstanceNorm2d(out_features, track_running_stats=True)
+
+    def forward(self, x, prev_state, residual=0):
+                # generate empty prev_state, if None is provided
+        if prev_state is None:
+            prev_state = torch.tensor(0)  # not used
+
+        out = self.layer(x)
+
+        if self.norm in ["BN", "IN"]:
+            out = self.norm_layer(out)
+
+        out += residual
+        if self.activation is not None:
+            out = self.activation(out)
+
+        return out, prev_state
+
+
+class LinearLIF(torch.nn.Module):
+    # TODO test this
+    # Based on the Convolutional spiking LIF cell in spiking_submodules.py
+    def __init__(
+        self,
+        in_features,
+        out_features,
+        bias=True,
+        activation="arctanspike",
+        act_width=10.0,
+        leak=(-4.0, 0.1),
+        thresh=(0.8, 0.0),
+        learn_leak=True,
+        learn_thresh=True,
+        hard_reset=True,
+        detach=True,
+        norm=None,
+    ):
+        super().__init__()
+
+        # shapes
+        self.input_neurons = in_features
+        self.hidden_neurons = out_features
+
+        # parameters
+        self.ff = torch.nn.Linear(self.input_neurons, self.hidden_neurons, bias=bias)
+        if learn_leak:
+            self.leak = torch.nn.Parameter(torch.randn(self.hidden_neurons, 1, 1) * leak[1] + leak[0])
+        else:
+            self.register_buffer("leak", torch.randn(self.hidden_neurons, 1, 1) * leak[1] + leak[0])
+        if learn_thresh:
+            self.thresh = torch.nn.Parameter(torch.randn(self.hidden_neurons, 1, 1) * thresh[1] + thresh[0])
+        else:
+            self.register_buffer("thresh", torch.randn(self.hidden_neurons, 1, 1) * thresh[1] + thresh[0])
+
+        # weight init
+        w_scale = math.sqrt(1 / self.input_neurons)
+        torch.nn.init.uniform_(self.ff.weight, -w_scale, w_scale)
+
+        # spiking and reset mechanics
+        assert isinstance(
+            activation, str
+        ), "Spiking neurons need a valid activation, see models/spiking_util.py for choices"
+        self.spike_fn = getattr(spiking, activation)
+        self.register_buffer("act_width", torch.tensor(act_width))
+        self.hard_reset = hard_reset
+        self.detach = detach
+
+        # norm
+        if norm == "weight":
+            self.ff = torch.nn.utils.weight_norm(self.ff)
+            self.norm = None
+        elif norm == "group":
+            groups = min(1, self.input_neurons// 4)  # at least instance norm
+            self.norm = torch.nn.GroupNorm(groups, self.input_neurons)
+        else:
+            self.norm = None
+
+    def forward(self, input_, prev_state, residual=0):
+        # input current
+        if self.norm is not None:
+            input_ = self.norm(input_)
+        ff = self.ff(input_)
+
+        # generate empty prev_state, if None is provided
+        if prev_state is None:
+            prev_state = torch.zeros(2, *ff.shape, dtype=ff.dtype, device=ff.device)
+        v, z = prev_state  # unbind op, removes dimension
+
+        # clamp thresh
+        thresh = self.thresh.clamp_min(0.01)
+
+        # get leak
+        leak = torch.sigmoid(self.leak)
+
+        # detach reset
+        if self.detach:
+            z = z.detach()
+
+        # voltage update: decay, reset, add
+        if self.hard_reset:
+            v_out = v * leak * (1 - z) + (1 - leak) * ff
+        else:
+            v_out = v * leak + (1 - leak) * ff - z * thresh
+
+        # spike
+        z_out = self.spike_fn(v_out, thresh, self.act_width)
+
+        return z_out + residual, torch.stack([v_out, z_out])
+
 
 
 # first attempt
@@ -37,14 +181,13 @@ class SimpleRotationModel(BaseModel):
     def forward(self, X, init_rot=None):
         if init_rot: 
             X = torch.concat((X, init_rot))
-        return self.layers(X)
+        return self.layers(X), None
     
 
 # second attempt
 class ConvRotationModel(BaseModel):
     # CNN
     # TODO: make easier to modify
-    # TODO: implement spiking version
 
     def __init__(self, input_size, n_outputs, n_init=0):
         super().__init__()
@@ -78,7 +221,106 @@ class ConvRotationModel(BaseModel):
         X = X.reshape(X.shape[0], -1)
         if init_rot is not None: 
             X = torch.concat((X, init_rot), dim=-1)
-        return self.linear_layers(X)
+        return self.linear_layers(X), None
+
+
+class SpikingConvRotationModel(BaseModel):
+    """CNN that can be made spiking"""
+
+    def __init__(self, input_size, n_outputs, n_init=0, neurons=[ConvLayer_, Linear], neuron_settings={}):
+        # TODO (pick up here): 
+        # add prev_states & residuals based on FireNet architecture
+        # compare FireNet architecture to EV-FlowNet
+        # test without spiking
+        # test with spiking
+        # investigate hybrid
+        # set up new runs
+        super().__init__()
+        self.n_init = n_init
+        self.neuron_settings = neuron_settings  # could contain leak, thresh, learn_leak, learn_thresh and hard_reset
+
+        self.conv1 = neurons[0](input_size[1], 16, kernel_size=3, stride=2, **self.neuron_settings)
+        self.conv2 = neurons[0](16, 32, kernel_size=3, stride=2, **self.neuron_settings)
+        #self.conv3 = neurons[0](32, 32, kernel_size=3, stride=2, **self.neuron_settings)
+
+        n_middle = self.conv2(
+                        self.conv1(torch.randn(input_size), prev_state=None)[0], 
+                        prev_state=None)[0].reshape(input_size[0], -1).shape[1]
+        if self.n_init: n_middle += self.n_init
+        #assert False
+
+        self.linear1 = neurons[1](n_middle, 64)
+        self.linear2 = neurons[1](64, 64)
+        self.linear3 = neurons[1](64, n_outputs)
+
+        self.layers = torch.nn.Sequential(
+            self.conv1, 
+            self.conv2, 
+            torch.nn.Flatten(),
+            self.linear1, 
+            self.linear2, 
+            self.linear3
+        )
+
+        self.n_states = len(self.layers)  # transfer layer will be ignored but should be included so the indices match
+        self.reset_states()  # create n_states states set to None
+    
+    def forward(self, X, init_rot=None, log=False):
+        #TODO check if I need residuals -> FireNet doesn't include any
+        #TODO check if the reshape/flatten is done correctly: does it handle different batch sizes?
+        Xs = [X]
+        for i, layer in enumerate(self.layers):
+            if isinstance(layer, torch.nn.Flatten):
+                Xs += [layer(Xs[-1])]
+                #X = X.reshape(X.shape[0], -1)
+                if init_rot is not None: 
+                    X = torch.concat((X, init_rot), dim=-1)
+            else:
+                X, self._states[i] = layer(Xs[-1], self._states[i])
+                Xs += [X]
+
+        # log activity
+        if log:
+            # TODO update this when changing the architecture
+            activity = {}
+            name = [
+                "0:input",
+                "1:conv1",
+                "2:conv2",
+                "3:flatten",
+                "4:linear1",
+                "5:linear2",
+                "6:linear3"
+            ]
+            for n, l in zip(name, [Xs]):
+                activity[n] = l.detach().ne(0).float().mean().item()
+        else:
+            activity = None
+
+        return Xs[-1], activity
+    
+    @property
+    def states(self):
+        return copy_states(self._states)
+
+    @states.setter
+    def states(self, states):
+        self._states = states
+
+    def detach_states(self):
+        detached_states = []
+        for state in self.states:
+            if type(state) is tuple:
+                tmp = []
+                for hidden in state:
+                    tmp.append(hidden.detach())
+                detached_states.append(tuple(tmp))
+            else:
+                detached_states.append(state.detach())
+        self.states = detached_states
+
+    def reset_states(self):
+        self._states = [None] * self.n_states
     
 
 # integrating everything
@@ -92,7 +334,7 @@ class FullRotationModel(BaseModel):
         # base_num_channels = unet_kwargs["base_num_channels"]
         # kernel_size = unet_kwargs["kernel_size"]
         # self.encoding = unet_kwargs["encoding"]
-        # self.norm_input = False if "norm_input" not in unet_kwargs.keys() else unet_kwargs["norm_input"]
+        self.norm_input = False if "norm_input" not in unet_kwargs.keys() else unet_kwargs["norm_input"]
         self.mask = unet_kwargs["mask_output"]
         # ff_act, rec_act = unet_kwargs["activations"]
         # if type(unet_kwargs["spiking_neuron"]) is dict:
@@ -119,14 +361,21 @@ class FullRotationModel(BaseModel):
         self.rotation_type = unet_kwargs["rotation_type"]
         self.n_outputs = self.get_n_rotation_nodes()
 
-        if unet_kwargs["model_type"] == ('conv' or 'conv_model' or 'ConvRotationModel'):
+        if unet_kwargs["model_type"] == ('spiking' or 'spiking_conv' or 'conv_spiking' or 'SpikingConvRotationModel'):
+            self.model_type = 'spiking'
+            kwargs = {}
+            if type(unet_kwargs["spiking_neuron"]) is dict:
+                kwargs["neurons"] = [ConvLIF, LinearLIF]
+                kwargs["neuron_settings"] = unet_kwargs["spiking_neuron"]
+            self.rotation_model = SpikingConvRotationModel(input_size=list(self.transfer_size), n_outputs=self.n_outputs, n_init=(self.include_init*self.get_n_rotation_nodes()), **kwargs)
+        elif unet_kwargs["model_type"] == ('conv' or 'conv_model' or 'ConvRotationModel'):
             self.model_type = 'conv'
             self.rotation_model = ConvRotationModel(input_size=list(self.transfer_size), n_outputs=self.n_outputs, n_init=(self.include_init*self.get_n_rotation_nodes()))
         else:
             self.model_type = 'linear'
             self.rotation_model = SimpleRotationModel(n_inputs=self.n_transfers, n_outputs=self.n_outputs, n_init=(self.include_init*self.get_n_rotation_nodes()))
     
-    def transfer_hook(self, module, inp, output):  # should I use output[0] or not?
+    def transfer_hook(self, module, inp, output): 
         if self.use_input: 
             values = inp
         else: 
@@ -142,7 +391,7 @@ class FullRotationModel(BaseModel):
         self.current_transfer = values
     
     def register_hook(self, module, transfer_layer:str):
-        print(module, transfer_layer)
+        #print(module, transfer_layer)
         if '.' in transfer_layer:
             idx = transfer_layer.index('.')
             return self.register_hook(getattr(module, transfer_layer[:idx]), transfer_layer[idx+1:])
@@ -209,6 +458,9 @@ class FullRotationModel(BaseModel):
         event_voxel = event_voxel.to(self.device)   
         if init_rot is not None: init_rot.to(self.device)
 
+        # TODO: potentially log activity
+        activity = None
+
         # forward pass
 
         # get the hook
@@ -218,28 +470,33 @@ class FullRotationModel(BaseModel):
         # TODO: cut this off at the transfer layer
         with torch.no_grad():
             flow = self.flow_model(event_voxel, event_cnt, log=log)['flow'][0]
+
+        transfer = self.current_transfer
+        if self.norm_input: # normalize input
+            mean, stddev = (
+                transfer[transfer != 0].mean(),
+                transfer[transfer != 0].std(),
+            )
+            transfer[transfer != 0] = (transfer[transfer != 0] - mean) / stddev
         
         # retrieve the intermediate values to transfer
         if self.model_type == 'linear':
-            transfer = torch.reshape(self.current_transfer, (self.current_transfer.shape[0], self.n_transfers))
+            transfer = torch.reshape(transfer, (transfer.shape[0], self.n_transfers))
         else: 
-            transfer = self.current_transfer
+            transfer = transfer
 
         # get the output of the rotation model
         if self.include_init: 
             if init_rot is not None: 
-                r = self.rotation_model(transfer, init_rot)
+                r, activity = self.rotation_model(transfer, init_rot)
             else: 
                 raise ValueError("Please provide a valid init_rot")
         else: 
-            r = self.rotation_model(transfer)
+            r, activity = self.rotation_model(transfer)
         
 
         if not self.use_input:
             hook.remove()
-
-        # TODO: potentially log activity
-        activity = None
 
         return {"flow": [flow], "activity": activity, "rotation": r}
 

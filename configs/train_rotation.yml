@@ -40,11 +40,11 @@ model:
   include_init: false
   kernel_size: 3
   mask_output: true
-  model_type: conv
+  model_type: spiking  # linear, conv or spiking_conv
   name: FullRotationModel
   norm_input: false
   num_bins: 2
-  prev_runid: FireNet  # nervous-ram-566 # FireNet or E2VID (27-5-bouncy-hog) or EVFlowNet or variations
+  prev_runid: LIFFireNet  # nervous-ram-566 # FireNet or E2VID (27-5-bouncy-hog) or EVFlowNet or variations
   round_encoding: false
   transfer_layer: pred  # for FireNet: head, R1b or pred; for EVFlowNet: multires_unetrec.encoders.0, multires_unetrec.resblocks.0, multires_unetrec.resblocks.1 or multires_unetrec.preds.3; for E2VID: unetrecurrent.head, unetrecurrent.resblocks.0, unetrecurrent.resblocks.1  or unetrecurrent.pred
   use_existing: true

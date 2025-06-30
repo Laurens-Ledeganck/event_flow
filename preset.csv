@@ -4,7 +4,7 @@ BATCH-1,model.prev_runid,model.transfer_layer,model.use_layer_input,loader.rotat
 START,FireNet,head,TRUE,euler_deg,conv,,,,FireNet head,
 ,,R1b,FALSE,,,,,,FireNet middle,
 ,,pred,FALSE,,,,,,FireNet end,
-,E2VID,unetrecurrent.head,TRUE,,,,,,E2VID head,
+,27-5-bouncy-hog,unetrecurrent.head,TRUE,,,,,,E2VID head,
 ,,unetrecurrent.resblocks.0,TRUE,,,,,,E2Vid middle,
 ,,unetrecurrent.resblocks.1,FALSE,,,,,,E2Vid middle,
 ,,unetrecurrent.pred,FALSE,,,,,,E2Vid end,
