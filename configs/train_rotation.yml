@@ -33,8 +33,8 @@ loss:
   overwrite_intermediate: false
 model:
   activations:
-  - relu
-  - null
+  - arctanspike
+  - arctanspike
   base_num_channels: 32
   encoding: cnt
   include_init: false
@@ -44,7 +44,7 @@ model:
   name: FullRotationModel
   norm_input: false
   num_bins: 2
-  prev_runid: LIFFireNet  # nervous-ram-566 # FireNet or E2VID (27-5-bouncy-hog) or EVFlowNet or variations
+  prev_runid: LIFFireNet  # FireNet or E2VID (27-5-bouncy-hog) or EVFlowNet or variations   # previously nervous-ram-566 
   round_encoding: false
   transfer_layer: pred  # for FireNet: head, R1b or pred; for EVFlowNet: multires_unetrec.encoders.0, multires_unetrec.resblocks.0, multires_unetrec.resblocks.1 or multires_unetrec.preds.3; for E2VID: unetrecurrent.head, unetrecurrent.resblocks.0, unetrecurrent.resblocks.1  or unetrecurrent.pred
   use_existing: true
@@ -52,7 +52,13 @@ model:
 optimizer:
   lr: 0.0002
   name: Adam
-spiking_neuron: null
+spiking_neuron: #null
+    use_spiking: true
+    leak: [-4.0, 0.1]
+    thresh: [0.8, 0.1]
+    learn_leak: True
+    learn_thresh: True
+    hard_reset: True
 vis:
   bars: false
   enabled: false

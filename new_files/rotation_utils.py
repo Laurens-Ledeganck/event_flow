@@ -67,7 +67,7 @@ class Linear(torch.nn.Module):
 
 
 class LinearLIF(torch.nn.Module):
-    # TODO test this
+    # TODO test this -> seems to work? 
     # Based on the Convolutional spiking LIF cell in spiking_submodules.py
     def __init__(
         self,
@@ -93,13 +93,13 @@ class LinearLIF(torch.nn.Module):
         # parameters
         self.ff = torch.nn.Linear(self.input_neurons, self.hidden_neurons, bias=bias)
         if learn_leak:
-            self.leak = torch.nn.Parameter(torch.randn(self.hidden_neurons, 1, 1) * leak[1] + leak[0])
+            self.leak = torch.nn.Parameter(torch.randn(self.hidden_neurons) * leak[1] + leak[0])
         else:
-            self.register_buffer("leak", torch.randn(self.hidden_neurons, 1, 1) * leak[1] + leak[0])
+            self.register_buffer("leak", torch.randn(self.hidden_neurons) * leak[1] + leak[0])
         if learn_thresh:
-            self.thresh = torch.nn.Parameter(torch.randn(self.hidden_neurons, 1, 1) * thresh[1] + thresh[0])
+            self.thresh = torch.nn.Parameter(torch.randn(self.hidden_neurons) * thresh[1] + thresh[0])
         else:
-            self.register_buffer("thresh", torch.randn(self.hidden_neurons, 1, 1) * thresh[1] + thresh[0])
+            self.register_buffer("thresh", torch.randn(self.hidden_neurons) * thresh[1] + thresh[0])
 
         # weight init
         w_scale = math.sqrt(1 / self.input_neurons)
@@ -147,6 +147,7 @@ class LinearLIF(torch.nn.Module):
 
         # voltage update: decay, reset, add
         if self.hard_reset:
+            print(input_.shape, v.shape, leak.shape, z.shape, ff.shape)  # TODO remove
             v_out = v * leak * (1 - z) + (1 - leak) * ff
         else:
             v_out = v * leak + (1 - leak) * ff - z * thresh
@@ -228,13 +229,17 @@ class SpikingConvRotationModel(BaseModel):
     """CNN that can be made spiking"""
 
     def __init__(self, input_size, n_outputs, n_init=0, neurons=[ConvLayer_, Linear], neuron_settings={}):
-        # TODO (pick up here): 
-        # add prev_states & residuals based on FireNet architecture
-        # compare FireNet architecture to EV-FlowNet
-        # test without spiking
-        # test with spiking
-        # investigate hybrid
-        # set up new runs
+        # TODO (pick up here):
+        # X compare with FireNet & EVFlowNet architectures -> this is the same as the FireNet architecture, EVFlowNet differs since that is an encoder-decoder but we don't need that here
+        # - how are the spiking networks trained? -> seems like they also use event windows? 
+        # -> can I compare the performance for smaller and smaller event windows?
+        # X something was wrong with LinearLIF, specifically the shape of the leak -> going from 3D to 1D fixes it
+        # X then something broke at loss.backward -> if I detach the state tensors and replace None with tensor(0) it works -> does it make sense? 
+        # - test without spiking
+        # - test with spiking
+        # - test ANN-SNN hybrid
+        # - test SNN-ANN hybrid
+        # - set up new runs
         super().__init__()
         self.n_init = n_init
         self.neuron_settings = neuron_settings  # could contain leak, thresh, learn_leak, learn_thresh and hard_reset
@@ -244,21 +249,24 @@ class SpikingConvRotationModel(BaseModel):
         #self.conv3 = neurons[0](32, 32, kernel_size=3, stride=2, **self.neuron_settings)
 
         n_middle = self.conv2(
-                        self.conv1(torch.randn(input_size), prev_state=None)[0], 
-                        prev_state=None)[0].reshape(input_size[0], -1).shape[1]
+                        self.conv1(
+                            torch.randn(input_size), 
+                        prev_state=None)[0], 
+                    prev_state=None)[0].reshape(input_size[0], -1).shape[1]
+        # n_middle = np.product(input_size[1:])
         if self.n_init: n_middle += self.n_init
-        #assert False
 
-        self.linear1 = neurons[1](n_middle, 64)
-        self.linear2 = neurons[1](64, 64)
-        self.linear3 = neurons[1](64, n_outputs)
+        # self.linear1 = neurons[1](n_middle, 64, **self.neuron_settings)
+        # self.linear2 = neurons[1](64, 64, **self.neuron_settings)
+        # self.linear3 = Linear(64, n_outputs, bias=False, activation=None)
+        self.linear3 = Linear(n_middle, n_outputs, bias=False, activation=None)
 
         self.layers = torch.nn.Sequential(
             self.conv1, 
             self.conv2, 
             torch.nn.Flatten(),
-            self.linear1, 
-            self.linear2, 
+            # self.linear1, 
+            # self.linear2, 
             self.linear3
         )
 
@@ -266,18 +274,39 @@ class SpikingConvRotationModel(BaseModel):
         self.reset_states()  # create n_states states set to None
     
     def forward(self, X, init_rot=None, log=False):
+        torch.autograd.set_detect_anomaly(True)
         #TODO check if I need residuals -> FireNet doesn't include any
         #TODO check if the reshape/flatten is done correctly: does it handle different batch sizes?
-        Xs = [X]
-        for i, layer in enumerate(self.layers):
-            if isinstance(layer, torch.nn.Flatten):
-                Xs += [layer(Xs[-1])]
-                #X = X.reshape(X.shape[0], -1)
-                if init_rot is not None: 
-                    X = torch.concat((X, init_rot), dim=-1)
-            else:
-                X, self._states[i] = layer(Xs[-1], self._states[i])
-                Xs += [X]
+        
+        # Xs = [X]
+        # for i, layer in enumerate(self.layers):
+        #     if isinstance(layer, torch.nn.Flatten):
+        #         Xs += [layer(Xs[-1])]
+        #         #X = X.reshape(X.shape[0], -1)
+        #         if init_rot is not None: 
+        #             X = torch.concat((X, init_rot), dim=-1)
+        #     else:
+        #         X, self._states[i] = layer(Xs[-1], self._states[i])
+        #         Xs += [X]
+
+        x0 = X
+        x1, self._states[0] = self.conv1(x0, self._states[0])  # TODO: or here if you comment the next one
+        x2, self._states[1] = self.conv2(x1, self._states[1])  # TODO: here arctanspike seems to be causing an issue somehow
+        xt = torch.flatten(x2, 1)
+        self._states[2] = torch.tensor(0)
+        if init_rot is not None: 
+            xt = torch.concat((xt, init_rot), dim=-1)
+        rot, self._states[3] = self.linear3(xt, self._states[3])
+        Xs = [x0, x1, x2, xt, rot]
+
+        for i, state in enumerate(self._states):
+            #print(state, prev_states[i])
+            #state.requires_grad_(False)
+                            
+            if i != 2:
+                if self._states[i] is None: assert False
+                self._states[i] = self.states[i].detach()
+                #print(i, self._states[i].requires_grad, self._states[i].grad_fn)
 
         # log activity
         if log:
@@ -288,16 +317,16 @@ class SpikingConvRotationModel(BaseModel):
                 "1:conv1",
                 "2:conv2",
                 "3:flatten",
-                "4:linear1",
-                "5:linear2",
+                # "4:linear1",
+                # "5:linear2",
                 "6:linear3"
             ]
-            for n, l in zip(name, [Xs]):
+            for n, l in zip(name, Xs):
                 activity[n] = l.detach().ne(0).float().mean().item()
         else:
             activity = None
 
-        return Xs[-1], activity
+        return rot, activity
     
     @property
     def states(self):
@@ -503,6 +532,9 @@ class FullRotationModel(BaseModel):
 
 
 class RotationLoss(BaseValidationLoss):
+    # TODO
+    # - add regularization
+    # - add target term
 
     def __init__(self, config, device, flow_scaling=128):
         super().__init__(config, device, flow_scaling)
@@ -513,8 +545,8 @@ class RotationLoss(BaseValidationLoss):
     def prepare_loss(self, y_pred, y_test):
         self.y_pred = y_pred
         self.y_test = y_test
-        # print(y_pred)
-        # print(y_test)
+        # print(y_pred.shape)
+        # print(y_test.shape)
         # print()
 
     def forward(self):
